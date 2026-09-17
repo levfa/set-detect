@@ -15,8 +15,8 @@ constexpr double kPi = std::numbers::pi;
 // Builds an axis-unrotated-then-rotated rectangle of the given size, centered at `center`,
 // as a DetectedCard with fully visible corners. Corner order matches the canonical
 // rectangle winding: top-left, top-right, bottom-right, bottom-left.
-auto make_card(double center_x, double center_y, double width, double height, double angle_rad,
-               double visibility = 1.0) -> cd::DetectedCard {
+auto make_card(double center_x, double center_y, double width, double height, double angle_rad, double visibility = 1.0)
+    -> cd::DetectedCard {
     const double half_w = width / 2.0;
     const double half_h = height / 2.0;
     const std::array<cd::Point2d, 4> local = {cd::Point2d{-half_w, -half_h}, cd::Point2d{half_w, -half_h},

@@ -89,8 +89,8 @@ auto procrustes_pose(const std::array<Point2d, 4>& world) -> std::array<double, 
 
 // Exact 4-point perspective transform (mirrors cv::getPerspectiveTransform): solves the
 // determined 8x8 linear system for the homography mapping src[i] -> dst[i] exactly.
-auto solve_perspective_transform(const std::array<Point2d, 4>& src,
-                                 const std::array<Point2d, 4>& dst) -> std::optional<Eigen::Matrix3d> {
+auto solve_perspective_transform(const std::array<Point2d, 4>& src, const std::array<Point2d, 4>& dst)
+    -> std::optional<Eigen::Matrix3d> {
     Eigen::Matrix<double, 8, 8> m = Eigen::Matrix<double, 8, 8>::Zero();
     Eigen::Matrix<double, 8, 1> b;
     for (Eigen::Index i = 0; i < 4; ++i) {
@@ -583,8 +583,8 @@ auto letterbox(const cv::Mat& img, int target_h, int target_w) -> LetterboxResul
 
 // Greedy IoU-based non-maximum suppression; returns indices to keep, highest score
 // first.
-auto nms(const std::vector<std::array<double, 4>>& boxes_xyxy, const std::vector<double>& scores,
-         double iou_threshold) -> std::vector<int> {
+auto nms(const std::vector<std::array<double, 4>>& boxes_xyxy, const std::vector<double>& scores, double iou_threshold)
+    -> std::vector<int> {
     std::vector<int> order(scores.size());
     std::iota(order.begin(), order.end(), 0);
     std::sort(order.begin(), order.end(),
@@ -625,8 +625,8 @@ auto nms(const std::vector<std::array<double, 4>>& boxes_xyxy, const std::vector
 // [0:4]=box xywh, [4]=score, [5:17]=4 corners x (x, y, visibility) in letterboxed
 // coordinates. Applies confidence filtering, NMS, and undoes the letterbox transform.
 auto parse_corner_output(const float* rows, int n_rows, int n_cols, double conf_threshold, double iou_threshold,
-                         int img_h, int img_w, double ratio, double pad_left,
-                         double pad_top) -> std::vector<CornerDetection> {
+                         int img_h, int img_w, double ratio, double pad_left, double pad_top)
+    -> std::vector<CornerDetection> {
     std::vector<std::array<double, 4>> boxes_xyxy;
     std::vector<double> scores;
     std::vector<int> row_indices;
@@ -721,8 +721,8 @@ auto argmax4(const std::array<double, 4>& probs) -> int {
 
 // Fetches every output name of `session`, keeping the backing allocations alive in
 // `holders` for as long as the returned pointers are used.
-auto all_output_names(Ort::Session& session,
-                      std::vector<Ort::AllocatedStringPtr>& holders) -> std::vector<const char*> {
+auto all_output_names(Ort::Session& session, std::vector<Ort::AllocatedStringPtr>& holders)
+    -> std::vector<const char*> {
     const Ort::AllocatorWithDefaultOptions allocator;
     const size_t n = session.GetOutputCount();
     holders.reserve(n);
@@ -939,8 +939,8 @@ auto create_session(Ort::Env& env, const std::string& model_path, int device_id)
     return {env, model_path.c_str(), opts};
 }
 
-auto detect_card_corners(const cv::Mat& img_rgb, Ort::Session& session, double conf, double iou,
-                         int imgsz) -> std::vector<CornerDetection> {
+auto detect_card_corners(const cv::Mat& img_rgb, Ort::Session& session, double conf, double iou, int imgsz)
+    -> std::vector<CornerDetection> {
     const LetterboxResult lb = letterbox(img_rgb, imgsz, imgsz);
 
     const auto plane = static_cast<size_t>(imgsz) * static_cast<size_t>(imgsz);

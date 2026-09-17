@@ -68,8 +68,8 @@ auto shift_texture(const cv::Mat& prev, int dx, int dy, unsigned seed) -> cv::Ma
     return img;
 }
 
-auto profile(int rows, int cols, int runs, unsigned seed, int n_points, int win_size, int max_level,
-             int threads) -> int {
+auto profile(int rows, int cols, int runs, unsigned seed, int n_points, int win_size, int max_level, int threads)
+    -> int {
     const cv::Mat prev = make_texture(rows, cols, seed);
     const cv::Mat next = shift_texture(prev, 4, 3, seed + 1);
 
