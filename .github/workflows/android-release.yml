@@ -53,17 +53,13 @@ jobs:
           sdkmanager --install "ndk;28.2.13676358" "cmake;3.22.1"
 
       # The minimal OpenCV build (scripts/build_opencv_min.sh) clones and cross-compiles
-      # OpenCV from source -- slow, and its own task already skips rebuilding once this
-      # output dir is populated (stamp-file checked), so caching it across runs matters.
+      # OpenCV from source
       - name: Cache minimal OpenCV build
         uses: actions/cache@v4
         with:
           path: android/app/build/native-sdk-opencv
           key: android-opencv-min-${{ hashFiles('android/scripts/build_opencv_min.sh') }}
 
-      # versionCode must strictly increase release over release for existing installs to
-      # upgrade in place (Android's own package-installer requirement) -- deriving both
-      # straight from the tag means there's nothing to remember/bump by hand beforehand.
       - name: Derive versionName/versionCode from the tag
         run: |
           version="${GITHUB_REF_NAME#v}"
@@ -77,9 +73,6 @@ jobs:
           echo "SETDETECT_VERSION_NAME=$version" >> "$GITHUB_ENV"
           echo "SETDETECT_VERSION_CODE=$((major * 10000 + minor * 100 + patch))" >> "$GITHUB_ENV"
 
-      # Validates the decoded keystore immediately (keytool -list) rather than letting a
-      # corrupt/truncated secret surface ~9 minutes later as a cryptic error out of AGP's
-      # packageRelease/R8 step, after the full OpenCV-from-source build has already run.
       - name: Decode + validate signing keystore
         env:
           ANDROID_GITHUB_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_GITHUB_RELEASE_KEYSTORE_BASE64 }}
@@ -90,15 +83,17 @@ jobs:
           echo "$ANDROID_GITHUB_RELEASE_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/signing/release.keystore"
           echo "SETDETECT_RELEASE_KEYSTORE=$RUNNER_TEMP/signing/release.keystore" >> "$GITHUB_ENV"
           echo "decoded keystore: $(wc -c < "$RUNNER_TEMP/signing/release.keystore") bytes, sha256 $(sha256sum "$RUNNER_TEMP/signing/release.keystore" | cut -d' ' -f1)"
+          # No output redirection here: keytool writes its error messages (e.g. "keystore
+          # password was incorrect", "alias does not exist") to stdout in most JDK
+          # versions, not stderr -- redirecting stdout away would silently hide the one
+          # thing this check exists to surface. Its harmless success output (a couple of
+          # lines) is an acceptable trade-off for that.
           keytool -list -storetype PKCS12 \
             -keystore "$RUNNER_TEMP/signing/release.keystore" \
             -storepass "$ANDROID_GITHUB_RELEASE_KEYSTORE_PASSWORD" \
-            -alias "$ANDROID_GITHUB_RELEASE_KEY_ALIAS" > /dev/null
+            -alias "$ANDROID_GITHUB_RELEASE_KEY_ALIAS"
           echo "keystore OK, alias '$ANDROID_GITHUB_RELEASE_KEY_ALIAS' found"
 
-      # Gradle-facing env var names stay path-agnostic ("RELEASE", not "GITHUB") -- a
-      # future Play Store/F-Droid workflow can reuse build.gradle.kts unchanged by
-      # mapping its own differently-named secrets into these same env vars.
       - name: Build signed release APK
         env:
           SETDETECT_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_GITHUB_RELEASE_KEYSTORE_PASSWORD }}
