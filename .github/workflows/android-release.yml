@@ -15,7 +15,7 @@ jobs:
       run:
         working-directory: android
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install system build dependencies (ninja + cmake for the minimal OpenCV build; git preinstalled)
         run: |
@@ -25,18 +25,19 @@ jobs:
       # Only launches the Gradle wrapper; the actual build JDK is provisioned
       # separately by Gradle's own toolchain resolution.
       - name: Set up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "21"
 
       - name: Set up Gradle
         # Pinned to a patch version: the floating major tag fails to resolve under
-        # some local CI runners (e.g. nektos/act).
-        uses: gradle/actions/setup-gradle@v4.4.4
+        # some local CI runners (e.g. nektos/act). Held to v5, not v6: v6 moves
+        # Gradle's caching component behind its own commercial terms of use.
+        uses: gradle/actions/setup-gradle@v5.0.2
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           # Licenses are accepted explicitly in a later step instead, since this
           # action's own license-acceptance can fail non-interactively.
@@ -53,7 +54,7 @@ jobs:
       # Caches the from-source OpenCV build, which is slow and otherwise reruns
       # on every job.
       - name: Cache minimal OpenCV build
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: android/app/build/native-sdk-opencv
           key: android-opencv-min-${{ hashFiles('android/scripts/build_opencv_min.sh') }}
@@ -104,11 +105,27 @@ jobs:
           mv app/build/outputs/apk/release/app-release.apk \
              "app/build/outputs/apk/release/set-detect-v${SETDETECT_VERSION_NAME}.apk"
 
+      # Uses gh directly, with its own retry loop, rather than a release-publishing
+      # action: GitHub's asset-upload endpoint occasionally leaves a large asset
+      # stuck mid-upload, and a same-name upload can't replace a stuck asset without
+      # --clobber.
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v3.0.3
-        with:
-          files: android/app/build/outputs/apk/release/set-detect-v${{ env.SETDETECT_VERSION_NAME }}.apk
-          generate_release_notes: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          asset="app/build/outputs/apk/release/set-detect-v${SETDETECT_VERSION_NAME}.apk"
+          if ! gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --generate-notes
+          fi
+          for attempt in 1 2 3; do
+            if gh release upload "$GITHUB_REF_NAME" "$asset" --repo "$GITHUB_REPOSITORY" --clobber; then
+              exit 0
+            fi
+            echo "::warning::Asset upload attempt $attempt failed"
+            sleep 20
+          done
+          echo "::error::Failed to upload release asset after 3 attempts"
+          exit 1
 
   aab-build:
     runs-on: ubuntu-latest
@@ -119,7 +136,7 @@ jobs:
       run:
         working-directory: android
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install system build dependencies (ninja + cmake for the minimal OpenCV build; git preinstalled)
         run: |
@@ -127,16 +144,16 @@ jobs:
           sudo apt-get install -y --no-install-recommends ninja-build cmake
 
       - name: Set up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "21"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4.4.4
+        uses: gradle/actions/setup-gradle@v5.0.2
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           accept-android-sdk-licenses: false
           packages: platform-tools
@@ -147,7 +164,7 @@ jobs:
           sdkmanager --install "ndk;28.2.13676358" "cmake;3.22.1"
 
       - name: Cache minimal OpenCV build
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: android/app/build/native-sdk-opencv
           key: android-opencv-min-${{ hashFiles('android/scripts/build_opencv_min.sh') }}
@@ -201,7 +218,7 @@ jobs:
       # Uploaded as a workflow artifact only; Play Console publishing stays a
       # manual step for now.
       - name: Upload AAB as a workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: set-detect-v${{ env.SETDETECT_VERSION_NAME }}-aab
           path: android/app/build/outputs/bundle/release/set-detect-v${{ env.SETDETECT_VERSION_NAME }}.aab

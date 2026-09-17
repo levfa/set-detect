@@ -19,7 +19,7 @@ jobs:
       run:
         working-directory: android
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install system build dependencies (ninja + cmake for the minimal OpenCV build; git preinstalled)
         run: |
@@ -30,7 +30,7 @@ jobs:
       # Gradle itself via the foojay-resolver-convention plugin (settings.gradle.kts),
       # per gradle/gradle-daemon-jvm.properties.
       - name: Set up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "21"
@@ -38,11 +38,12 @@ jobs:
       - name: Set up Gradle
         # Pinned to a patch tag: the floating v4 ref trips act's git resolver locally
         # ("unsupported object type"), though it's harmless on real GitHub Actions.
-        # A patch pin works on both.
-        uses: gradle/actions/setup-gradle@v4.4.4
+        # A patch pin works on both. Held to v5, not v6: v6 moves Gradle's caching
+        # component behind its own commercial terms of use.
+        uses: gradle/actions/setup-gradle@v5.0.2
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           # Accepted explicitly below instead: more robust than trusting the action's
           # own internal `sdkmanager --licenses` call to always get a usable stdin.
@@ -60,7 +61,7 @@ jobs:
       # OpenCV from source, which is slow. It skips rebuilding once this output dir is
       # populated (stamp-file checked), so caching it across runs matters.
       - name: Cache minimal OpenCV build
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: android/app/build/native-sdk-opencv
           key: android-opencv-min-${{ hashFiles('android/scripts/build_opencv_min.sh') }}

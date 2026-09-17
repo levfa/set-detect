@@ -17,7 +17,7 @@ jobs:
       run:
         working-directory: py
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install system dependencies
         run: |
@@ -41,7 +41,7 @@ jobs:
       run:
         working-directory: py
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install system dependencies
         run: |
@@ -57,7 +57,7 @@ jobs:
         run: uv sync --group dev
 
       - name: Cache downloaded models
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/setdetect/models
           key: setdetect-models-${{ hashFiles('py/src/setdetect/model/models_repo.py') }}
