@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  apk-build:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -22,9 +22,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ninja-build cmake
 
-      # Bootstraps ./gradlew; the actual build/daemon JDK (25) is auto-provisioned by
-      # Gradle itself via the foojay-resolver-convention plugin (settings.gradle.kts),
-      # per gradle/gradle-daemon-jvm.properties.
+      # Only launches the Gradle wrapper; the actual build JDK is provisioned
+      # separately by Gradle's own toolchain resolution.
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
@@ -32,19 +31,18 @@ jobs:
           java-version: "21"
 
       - name: Set up Gradle
-        # Pinned to a patch tag rather than the floating v4: that ref's history trips
-        # act's git resolver ("unsupported object type"), harmless on real GitHub Actions
-        # but avoided here since it's just as valid a pin either way.
+        # Pinned to a patch version: the floating major tag fails to resolve under
+        # some local CI runners (e.g. nektos/act).
         uses: gradle/actions/setup-gradle@v4.4.4
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          # Accepted explicitly below instead: more robust than trusting the action's
-          # own internal `sdkmanager --licenses` call to always get a usable stdin.
+          # Licenses are accepted explicitly in a later step instead, since this
+          # action's own license-acceptance can fail non-interactively.
           accept-android-sdk-licenses: false
-          # Default packages ("tools platform-tools") include the legacy "tools" package,
-          # which Google discontinued -- sdkmanager can no longer resolve it.
+          # Default packages include the legacy "tools" package, discontinued by
+          # Google; sdkmanager can no longer resolve it.
           packages: platform-tools
 
       - name: Accept SDK licenses, install NDK + the CMake version pinned in build.gradle.kts
@@ -52,8 +50,8 @@ jobs:
           yes | sdkmanager --licenses > /dev/null 2>&1
           sdkmanager --install "ndk;28.2.13676358" "cmake;3.22.1"
 
-      # The minimal OpenCV build (scripts/build_opencv_min.sh) clones and cross-compiles
-      # OpenCV from source
+      # Caches the from-source OpenCV build, which is slow and otherwise reruns
+      # on every job.
       - name: Cache minimal OpenCV build
         uses: actions/cache@v4
         with:
@@ -75,29 +73,26 @@ jobs:
 
       - name: Decode + validate signing keystore
         env:
-          ANDROID_GITHUB_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_GITHUB_RELEASE_KEYSTORE_BASE64 }}
-          ANDROID_GITHUB_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_GITHUB_RELEASE_KEYSTORE_PASSWORD }}
-          ANDROID_GITHUB_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_GITHUB_RELEASE_KEY_ALIAS }}
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          ANDROID_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
+          ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
         run: |
           mkdir -p "$RUNNER_TEMP/signing"
-          echo "$ANDROID_GITHUB_RELEASE_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/signing/release.keystore"
+          echo "$ANDROID_RELEASE_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/signing/release.keystore"
           echo "SETDETECT_RELEASE_KEYSTORE=$RUNNER_TEMP/signing/release.keystore" >> "$GITHUB_ENV"
           echo "decoded keystore: $(wc -c < "$RUNNER_TEMP/signing/release.keystore") bytes, sha256 $(sha256sum "$RUNNER_TEMP/signing/release.keystore" | cut -d' ' -f1)"
-          # No output redirection here: keytool writes its error messages (e.g. "keystore
-          # password was incorrect", "alias does not exist") to stdout in most JDK
-          # versions, not stderr -- redirecting stdout away would silently hide the one
-          # thing this check exists to surface. Its harmless success output (a couple of
-          # lines) is an acceptable trade-off for that.
+          # keytool prints errors to stdout, not stderr, on most JDKs, so output
+          # is left unredirected here despite the harmless success lines it adds.
           keytool -list -storetype PKCS12 \
             -keystore "$RUNNER_TEMP/signing/release.keystore" \
-            -storepass "$ANDROID_GITHUB_RELEASE_KEYSTORE_PASSWORD" \
-            -alias "$ANDROID_GITHUB_RELEASE_KEY_ALIAS"
-          echo "keystore OK, alias '$ANDROID_GITHUB_RELEASE_KEY_ALIAS' found"
+            -storepass "$ANDROID_RELEASE_KEYSTORE_PASSWORD" \
+            -alias "$ANDROID_RELEASE_KEY_ALIAS"
+          echo "keystore OK, alias '$ANDROID_RELEASE_KEY_ALIAS' found"
 
       - name: Build signed release APK
         env:
-          SETDETECT_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_GITHUB_RELEASE_KEYSTORE_PASSWORD }}
-          SETDETECT_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_GITHUB_RELEASE_KEY_ALIAS }}
+          SETDETECT_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
+          SETDETECT_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
         run: ./gradlew assembleRelease
 
       - name: Remove decoded keystore
@@ -114,3 +109,99 @@ jobs:
         with:
           files: android/app/build/outputs/apk/release/set-detect-v${{ env.SETDETECT_VERSION_NAME }}.apk
           generate_release_notes: true
+
+  aab-build:
+    runs-on: ubuntu-latest
+    # Runs after apk-build so this reuses the OpenCV build cache it populates,
+    # instead of compiling OpenCV from source twice.
+    needs: apk-build
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system build dependencies (ninja + cmake for the minimal OpenCV build; git preinstalled)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build cmake
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4.4.4
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          accept-android-sdk-licenses: false
+          packages: platform-tools
+
+      - name: Accept SDK licenses, install NDK + the CMake version pinned in build.gradle.kts
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1
+          sdkmanager --install "ndk;28.2.13676358" "cmake;3.22.1"
+
+      - name: Cache minimal OpenCV build
+        uses: actions/cache@v4
+        with:
+          path: android/app/build/native-sdk-opencv
+          key: android-opencv-min-${{ hashFiles('android/scripts/build_opencv_min.sh') }}
+
+      - name: Derive versionName/versionCode from the tag
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if [[ ! "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "::error::Tag '$GITHUB_REF_NAME' is not vMAJOR.MINOR.PATCH" >&2
+            exit 1
+          fi
+          major="${BASH_REMATCH[1]}"
+          minor="${BASH_REMATCH[2]}"
+          patch="${BASH_REMATCH[3]}"
+          echo "SETDETECT_VERSION_NAME=$version" >> "$GITHUB_ENV"
+          echo "SETDETECT_VERSION_CODE=$((major * 10000 + minor * 100 + patch))" >> "$GITHUB_ENV"
+
+      - name: Decode + validate signing keystore
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          ANDROID_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
+          ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/signing"
+          echo "$ANDROID_RELEASE_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/signing/release.keystore"
+          echo "SETDETECT_RELEASE_KEYSTORE=$RUNNER_TEMP/signing/release.keystore" >> "$GITHUB_ENV"
+          echo "decoded keystore: $(wc -c < "$RUNNER_TEMP/signing/release.keystore") bytes, sha256 $(sha256sum "$RUNNER_TEMP/signing/release.keystore" | cut -d' ' -f1)"
+          # keytool prints errors to stdout, not stderr, on most JDKs, so output
+          # is left unredirected here despite the harmless success lines it adds.
+          keytool -list -storetype PKCS12 \
+            -keystore "$RUNNER_TEMP/signing/release.keystore" \
+            -storepass "$ANDROID_RELEASE_KEYSTORE_PASSWORD" \
+            -alias "$ANDROID_RELEASE_KEY_ALIAS"
+          echo "keystore OK, alias '$ANDROID_RELEASE_KEY_ALIAS' found"
+
+      - name: Build signed release AAB
+        env:
+          SETDETECT_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
+          SETDETECT_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+        run: ./gradlew bundleRelease
+
+      - name: Remove decoded keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/signing/release.keystore"
+
+      - name: Rename AAB for the artifact
+        run: |
+          mv app/build/outputs/bundle/release/app-release.aab \
+             "app/build/outputs/bundle/release/set-detect-v${SETDETECT_VERSION_NAME}.aab"
+
+      # Uploaded as a workflow artifact only; Play Console publishing stays a
+      # manual step for now.
+      - name: Upload AAB as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: set-detect-v${{ env.SETDETECT_VERSION_NAME }}-aab
+          path: android/app/build/outputs/bundle/release/set-detect-v${{ env.SETDETECT_VERSION_NAME }}.aab
