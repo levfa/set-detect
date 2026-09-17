@@ -85,9 +85,9 @@ jobs:
 
       - name: Run clang-tidy
         run: |
-          # cpp/src/apps/*.hpp are app-private, header-only (no .cpp of their own), and
-          # depend on CLI11's include path -- clang-tidy can't resolve that analyzing them
-          # standalone with no matching compile-database entry, so they're excluded here
-          # (they're exercised for real via each app target's own compile command instead).
+          # cpp/src/apps/*.hpp are app-private headers with no .cpp of their own and rely
+          # on CLI11's include path; clang-tidy can't resolve that without a matching
+          # compile-database entry, so they're excluded here (each app target's own
+          # compile command exercises them instead).
           find cpp/src cpp/include -path cpp/src/apps -prune -o \( -name "*.cpp" -o -name "*.hpp" \) -print0 \
             | xargs -0 clang-tidy -p cpp/build --quiet

@@ -22,9 +22,8 @@ fun LicensesScreen(
     modifier: Modifier = Modifier
 ) {
     // R.raw.aboutlibraries is generated at build time by the AboutLibraries
-    // Gradle plugin (see app/build.gradle.kts) -- passing the resource id
-    // directly (rather than the no-arg overload, which looks it up by name
-    // at runtime) so a release build's R8 obfuscation can't break the lookup.
+    // Gradle plugin. The resource id is passed directly since name-based
+    // lookup can break under a release build's R8 obfuscation.
     val libraries by produceLibraries(R.raw.aboutlibraries)
 
     Scaffold(

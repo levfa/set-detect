@@ -104,9 +104,9 @@ auto profile_arrangement_estimation(int n_cards, int runs, unsigned seed) -> int
     return 0;
 }
 
-// "Val images" = every raw photo directly under <data-root>/raw/*.{jpg,jpeg,png} --
-// mirrors the Python side's img_dir.list_images (a flat real board-photo dataset,
-// e.g. img-real-web or img-real-boards; no more nested per-collection subfolders).
+// "Val images" = every raw photo directly under <data-root>/raw/*.{jpg,jpeg,png}: a
+// flat real board-photo dataset (e.g. img-real-web or img-real-boards) with no
+// nested per-collection subfolders.
 auto list_val_images(const std::string& data_root) -> std::vector<fs::path> {
     const fs::path raw_dir = fs::path(data_root) / "raw";
     std::vector<fs::path> images;
@@ -128,7 +128,7 @@ auto list_val_images(const std::string& data_root) -> std::vector<fs::path> {
 
 // Shows detections on the real image (window "Original") alongside the estimated
 // arrangement (window "Arrangement"), advancing on a keypress. Detection runs lazily,
-// once per image, exactly when that image becomes current -- no upfront batch pass.
+// once per image, exactly when that image becomes current (no upfront batch pass).
 auto show_boards(const std::string& data_root, const setdetect::apps::DetectionArgs& det_args) -> int {
     const std::vector<fs::path> image_paths = list_val_images(data_root);
     if (image_paths.empty()) {

@@ -7,11 +7,10 @@
 
 namespace setdetect::card_detection {
 
-// Runs CardDetector::detect() on a dedicated background thread. Port of Python's
-// async_detector.py's AsyncCardDetector -- that used a whole OS process purely as a GIL
-// workaround; a thread is the natural equivalent here. submit() is non-blocking and
-// drops any not-yet-consumed previous submission (single input slot); poll() is
-// non-blocking and returns a finished result at most once (single output slot).
+// Runs card detection on a dedicated background thread. Submitting work is
+// non-blocking and drops any not-yet-consumed previous submission (single input
+// slot); polling for a result is non-blocking and returns a finished result at most
+// once (single output slot).
 class AsyncCardDetector {
   public:
     struct Result {
@@ -31,8 +30,8 @@ class AsyncCardDetector {
     // submission.
     void submit(int frame_id, const cv::Mat& img_rgb);
 
-    // Non-blocking. Returns the most recently finished result, consumed once --
-    // nullopt if nothing has finished since the last poll().
+    // Non-blocking. Returns the most recently finished result, consumed once,
+    // or nullopt if nothing has finished since the last call.
     auto poll() -> std::optional<Result>;
 
   private:

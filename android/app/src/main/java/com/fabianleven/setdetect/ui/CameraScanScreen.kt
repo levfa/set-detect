@@ -152,7 +152,6 @@ fun CameraScanScreen(
                         it.setSurfaceProvider(pv.surfaceProvider)
                     }
 
-                    // Get display rotation for both preview and analysis
                     val displayRotation = pv.display?.rotation ?: Surface.ROTATION_0
 
                     val imageAnalysis = ImageAnalysis.Builder()
@@ -261,7 +260,7 @@ fun CameraScanScreen(
 
 /**
  * Creates a matrix that maps coordinates from the analysis bitmap produced by
- * imageProxyToBitmap() -- already rotated to natural/upright orientation --
+ * imageProxyToBitmap() (already rotated to natural/upright orientation)
  * to the PreviewView's FIT_CENTER rendered region. Only FIT_CENTER scale and
  * letterbox offset are needed here; sensor rotation is already baked into the
  * bitmap (and therefore into every detected corner/arrangement coordinate),
@@ -294,12 +293,10 @@ private fun getCorrectionMatrix(imageProxy: ImageProxy, previewView: PreviewView
 
 /**
  * Copies the ImageAnalysis buffer into a Bitmap rotated to natural/upright
- * orientation (imageInfo.rotationDegrees), so detection -- and every
- * downstream consumer of its corner/arrangement coordinates, including the
- * arrangement screen, which unlike the live overlay below has no rotation
- * correction of its own -- sees the same canonically-oriented image cpp and
- * Python always operate on, instead of the raw (typically landscape-mounted)
- * sensor buffer.
+ * orientation, so detection and every downstream consumer of its
+ * corner/arrangement coordinates (including the arrangement screen, which has
+ * no rotation correction of its own) see the same canonically-oriented image
+ * the native detector expects, rather than the raw sensor buffer.
  */
 private fun imageProxyToBitmap(imageProxy: ImageProxy): Bitmap {
     val buffer = imageProxy.planes[0].buffer

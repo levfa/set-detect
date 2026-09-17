@@ -57,8 +57,8 @@ fun findSets(cards: List<SetCard>): List<List<SetCard>> {
 }
 
 // Every SetCard is meant to be unique on a real board; two detected cards sharing all
-// four attributes means either the same physical card really is on the table twice, or
-// classification misread one of them -- either way, the UI should flag it rather than
+// four attributes means either the same physical card is on the table twice, or
+// classification misread one of them; either way, the UI should flag it rather than
 // silently treat them as distinct.
 fun findDuplicateCards(cards: List<SetCard>): Set<SetCard> {
     return cards.groupingBy { it }.eachCount().filterValues { it > 1 }.keys

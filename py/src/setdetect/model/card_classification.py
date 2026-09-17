@@ -37,7 +37,7 @@ SHAPE_INV = {v: k for k, v in SHAPE_MAP.items()}
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
 
-CARD_SIZE: tuple[int, int] = (224, 320)  # width, height — portrait SET card (5:7 → 7:10)
+CARD_SIZE: tuple[int, int] = (224, 320)  # width, height; portrait SET card (5:7 → 7:10)
 
 
 class SetCardClassifier(nn.Module):
@@ -118,8 +118,8 @@ def _default_effects() -> Effects:
     ``make_effects()`` covers everything ``board_synth.make_image`` knows how to do
     (specular, ambient shading, per-card cast shadow, whole-board hard shadow, blur, card
     cover); crops are extracted from *jittered* quads (``jitter_quads``, simulating real
-    corner-detector imprecision), so effects that sit just outside a card's exact edge --
-    the cast shadow, background blur -- can still land inside a training crop and are worth
+    corner-detector imprecision), so effects that sit just outside a card's exact edge
+    (the cast shadow, background blur) can still land inside a training crop and are worth
     keeping, not just the effects that are always strictly inside it. ``augmenter`` is the
     one slot ``make_effects()`` never populates itself, so it's added here.
     """

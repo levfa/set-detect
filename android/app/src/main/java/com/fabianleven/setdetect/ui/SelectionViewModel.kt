@@ -36,8 +36,8 @@ class SelectionViewModel(
     fun updateScannedDetection(detection: Detection) {
         scannedDetection = detection
         selectedTabIndex = BOARD_TAB_INDEX
-        // A fresh scan replaces the previous selection entirely -- it doesn't
-        // accumulate on top of whatever was selected before -- then
+        // A fresh scan replaces the previous selection (it doesn't
+        // accumulate on top of whatever was selected before), then
         // auto-selects everything the new scan detected.
         selectedCards.clear()
         val newCards = detection.detectedCards.mapNotNull { it.card }

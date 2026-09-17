@@ -7,9 +7,9 @@ import androidx.appcompat.app.AppCompatActivity
 import com.fabianleven.setdetect.navigation.SetDetectNavGraph
 import com.fabianleven.setdetect.ui.theme.SetDetectTheme
 
-// Extends AppCompatActivity (not just ComponentActivity) specifically
-// because AppCompatDelegate.setApplicationLocales() -- our per-app language
-// picker -- silently fails to apply with Compose otherwise.
+// Extends AppCompatActivity (not just ComponentActivity) because the per-app
+// language picker, AppCompatDelegate.setApplicationLocales(), silently fails
+// to apply with Compose otherwise.
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

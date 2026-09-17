@@ -13,4 +13,4 @@ uv sync
 
 ## Commands
 
-- `uv run texturecan download -o ~/data/huggingface/nyuuzyou/texturecan` — downloads the `nyuuzyou/texturecan` texture dataset (~3 GB) from Hugging Face into the given directory (`-o/--local-dir` is required).
+- `uv run texturecan download -o ~/data/huggingface/nyuuzyou/texturecan`: downloads the `nyuuzyou/texturecan` texture dataset (~3 GB) from Hugging Face into the given directory (`-o/--local-dir` is required).

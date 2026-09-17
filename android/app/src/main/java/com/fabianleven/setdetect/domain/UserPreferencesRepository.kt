@@ -18,7 +18,7 @@ class UserPreferencesRepository(private val context: Context) {
 
     // Defaults to true: the tutorial auto-starts on every launch until the
     // user turns this off, either in Settings or via the checkbox on the
-    // tutorial's own last step -- it's a standing preference, not a one-shot
+    // tutorial's own last step. It's a standing preference, not a one-shot
     // "have I shown this before" flag.
     val showTutorialOnStartup: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[PreferencesKeys.SHOW_TUTORIAL_ON_STARTUP] ?: true

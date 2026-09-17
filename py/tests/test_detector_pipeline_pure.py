@@ -75,7 +75,7 @@ def test_match_card_returns_none_when_any_head_is_other():
     dc = DetectedCard(
         corners=np.zeros((4, 2)),
         corner_visibility=np.ones(4),
-        count_probs=_one_hot(3),  # "other" -- reject
+        count_probs=_one_hot(3),  # "other": reject
         color_probs=_one_hot(0),
         shape_probs=_one_hot(0),
         fill_probs=_one_hot(0),

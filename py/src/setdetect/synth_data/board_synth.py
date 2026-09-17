@@ -35,7 +35,7 @@ def _card_support(rot_agl: float, half_w: float, half_h: float, direction: np.nd
 
     The card is an axis-aligned ``half_w``x``half_h`` rectangle rotated by ``rot_agl``;
     projecting its two rotated edge axes onto ``direction`` gives the exact support
-    (max extent) of the rectangle's projection onto that direction -- used by
+    (max extent) of the rectangle's projection onto that direction, used by
     ``_relax_positions`` to run the separating-axis test between two cards.
     """
     ux = np.array([math.cos(rot_agl), math.sin(rot_agl)])
@@ -59,8 +59,7 @@ def _relax_positions(
     exceeds the two rectangles' combined support on that axis, and by the separating axis
     theorem the only candidate axes that can possibly witness that are each rectangle's own
     two edge normals (four candidates per pair here, since both cards share ``half_w``/
-    ``half_h``) -- the line connecting the two centers is *not* generally a valid separating
-    axis, so it can't be used as a shortcut. For each pair, if every candidate axis's
+    ``half_h``). For each pair, if every candidate axis's
     ``rel_min_separation``-scaled combined support still exceeds the actual center-projection
     on that axis, the pair is pushed apart along whichever axis needs the smallest
     correction (the standard minimum-translation-vector choice). ``rel_min_separation`` of
@@ -396,9 +395,9 @@ def make_image(
 
             # hairline shadow where a not-quite-flat card lifts off the table, drawn
             # before the card so it layers behind it. Uses the card's own just-warped
-            # alpha (computed above) rather than its bounding box, so the trimmed,
-            # feathered silhouette cancels out in the shift-vs-original comparison
-            # inside shadow_drawer instead of always showing along the padding border.
+            # alpha (computed above), so the trimmed, feathered silhouette cancels out
+            # in the shift-vs-original comparison inside shadow_drawer instead of
+            # always showing along the padding border.
             if shadow_drawer is not None:
                 shadow_drawer(img, warped[..., 3], (x0, y0), light_dir, hl_rng)
 
@@ -443,7 +442,7 @@ def make_image(
 
     if card_quads:
         # center the crop on the area-weighted content centroid: a projective warp
-        # skews the corner-bbox center away from where the pixels actually land
+        # skews the corner-bbox center away from where the pixels land
         num = np.zeros(2)
         den = 0.0
         for card_quad in card_quads:

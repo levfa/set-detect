@@ -36,9 +36,9 @@ jobs:
           java-version: "21"
 
       - name: Set up Gradle
-        # Pinned to a patch tag rather than the floating v4: that ref's history trips
-        # act's git resolver ("unsupported object type"), harmless on real GitHub Actions
-        # but avoided here since it's just as valid a pin either way.
+        # Pinned to a patch tag: the floating v4 ref trips act's git resolver locally
+        # ("unsupported object type"), though it's harmless on real GitHub Actions.
+        # A patch pin works on both.
         uses: gradle/actions/setup-gradle@v4.4.4
 
       - name: Set up Android SDK
@@ -48,7 +48,7 @@ jobs:
           # own internal `sdkmanager --licenses` call to always get a usable stdin.
           accept-android-sdk-licenses: false
           # Default packages ("tools platform-tools") include the legacy "tools" package,
-          # which Google discontinued -- sdkmanager can no longer resolve it.
+          # which Google discontinued; sdkmanager can no longer resolve it.
           packages: platform-tools
 
       - name: Accept SDK licenses, install NDK + the CMake version pinned in build.gradle.kts
@@ -57,8 +57,8 @@ jobs:
           sdkmanager --install "ndk;28.2.13676358" "cmake;3.22.1"
 
       # The minimal OpenCV build (scripts/build_opencv_min.sh) clones and cross-compiles
-      # OpenCV from source -- slow, and its own task already skips rebuilding once this
-      # output dir is populated (stamp-file checked), so caching it across runs matters.
+      # OpenCV from source, which is slow. It skips rebuilding once this output dir is
+      # populated (stamp-file checked), so caching it across runs matters.
       - name: Cache minimal OpenCV build
         uses: actions/cache@v4
         with:

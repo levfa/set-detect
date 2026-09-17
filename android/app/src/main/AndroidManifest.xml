@@ -34,7 +34,7 @@
 
         <!-- Enables AppCompatDelegate.setApplicationLocales() to persist the
              chosen per-app language itself on API < 33 (the system's own
-             LocaleManager handles it on 33+). The service is never actually
+             LocaleManager handles it on 33+). The service is never
              started; its presence plus this meta-data is what AppCompat
              looks for. -->
         <service

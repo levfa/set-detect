@@ -13,8 +13,7 @@ struct DetectionArgs {
     int imgsz = 640;
 };
 
-// Registers the --det-* flags (mirrors Python's ui/detection_args.py) on `sub`,
-// writing parsed values into `args`.
+// Registers the --det-* flags on `sub`, writing parsed values into `args`.
 inline void add_detection_args(CLI::App& sub, DetectionArgs& args) {
     sub.add_option("--det-corner-weights", args.corner_weights, "Corner-keypoint ONNX model (YOLOv8-pose)")->required();
     sub.add_option("--det-class-weights", args.class_weights, "Classifier ONNX model")->required();

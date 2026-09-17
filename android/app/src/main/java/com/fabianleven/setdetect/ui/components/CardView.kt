@@ -25,11 +25,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.fabianleven.setdetect.domain.*
 
-// Deselected cards use a solid muted gray (not a translucent white -- alpha
-// over a varying background is what made contrast inconsistent before,
-// especially at small sizes) *and* a faded symbol, two compounding signals so
-// "deselected" reads unambiguously next to a crisp, bordered, full-color
-// selected card.
+// Deselected cards use a solid muted gray (not a translucent white; alpha
+// over a varying background makes contrast inconsistent, especially at small
+// sizes) *and* a faded symbol, two compounding signals so "deselected" reads
+// unambiguously next to a crisp, bordered, full-color selected card.
 private val DeselectedContainerColor = Color(0xFFBDBDBD)
 private const val DeselectedSymbolAlpha = 0.45f
 
@@ -57,8 +56,8 @@ fun CardView(
     val color by animateColorAsState(targetColor, label = "symbolColor")
 
     // isActive is only ever false from the scan view's deselected cards: no
-    // symbol at all there, rather than a faded one, keeps "this card is
-    // excluded" unambiguous instead of relying on a hard-to-see cross-out.
+    // symbol at all there keeps "this card is excluded" unambiguous instead
+    // of relying on a hard-to-see cross-out.
     val showSymbol = isActive
 
     val containerColor by animateColorAsState(
@@ -72,7 +71,7 @@ fun CardView(
     // Animate the border's width and color together (rather than swapping a
     // null border in abruptly) so it fades away instead of popping off.
     // showBorder is false in the arrangement view, where the cards are
-    // already small and rotated -- the container color/symbol contrast alone
+    // already small and rotated: the container color/symbol contrast alone
     // (white+full-color vs. gray+no-symbol) is enough there, and a border
     // dodging each card's rotation adds visual noise instead of clarity.
     val borderColor by animateColorAsState(

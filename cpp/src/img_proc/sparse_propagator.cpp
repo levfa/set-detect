@@ -182,11 +182,9 @@ struct RingBuffer {
     }
 };
 
-// Downscales by params.scale, matching Python's SparsePropagator._to_scale
-// (cv2.resize(..., interpolation=cv2.INTER_AREA)). scale >= 1 is a plain
-// clone -- upscaling was never a real use case here, and it keeps
-// next_img()'s zero-motion first-frame behavior exact (no interpolation
-// artifacts from a no-op resize).
+// Downscales by scale using INTER_AREA. scale >= 1 is a plain clone: upscaling is
+// not a supported use case here, and this keeps the zero-motion first-frame behavior
+// exact (no interpolation artifacts from a no-op resize).
 auto scale_down(const cv::Mat& src, float scale) -> cv::Mat {
     if (scale >= 1.0F) {
         return src.clone();

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds a minimal, size-scoped static OpenCV for Android (core+imgproc+video+
-# features -- what corners_st.cpp/opt_flow_pyr_lk.cpp actually call: only
+# features: the only calls corners_st.cpp/opt_flow_pyr_lk.cpp make are
 # cv::goodFeaturesToTrack and cv::calcOpticalFlowPyrLK/buildOpticalFlowPyramid)
 # and installs it under OUT_DIR. Invoked by the buildMinimalOpenCv Gradle task
 # in app/build.gradle.kts, gated on OUT_DIR already containing a stamp file so
@@ -72,7 +72,7 @@ for lib in "${BUILD_DIR}"/lib/"${ABI}"/*.a "${BUILD_DIR}"/3rdparty/lib/"${ABI}"/
 done
 
 # Headers: the generated (per-build-config) ones plus every module's public
-# include tree -- mirrors what the real OpenCV Android SDK packages.
+# include tree, mirroring what the real OpenCV Android SDK packages.
 cp "${BUILD_DIR}"/cvconfig.h "${BUILD_DIR}"/cv_cpu_config.h "${BUILD_DIR}"/custom_hal.hpp "${INCLUDE_OUT}/" 2>/dev/null || true
 cp -r "${BUILD_DIR}/opencv2" "${INCLUDE_OUT}/" 2>/dev/null || true
 [[ -d "${BUILD_DIR}/carotene" ]] && cp -r "${BUILD_DIR}/carotene" "${INCLUDE_OUT}/"

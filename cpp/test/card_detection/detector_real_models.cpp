@@ -11,8 +11,9 @@ namespace cd = setdetect::card_detection;
 
 namespace {
 
-// Mirrors py/src/setdetect/model/models_repo.py's cache layout so both languages' tests
-// can share one downloaded cache; populated by scripts/download_models.sh.
+// Uses the same cache layout as this project's other model downloader, so both
+// languages' tests can share one downloaded cache; populated by
+// scripts/download_models.sh.
 auto models_root() -> std::string {
     const char* env = std::getenv("SETDETECT_MODELS_ROOT");
     if (env != nullptr && *env != '\0') {
@@ -26,7 +27,7 @@ auto corner_model_path() -> std::string { return models_root() + "/card-corners/
 
 auto class_model_path() -> std::string { return models_root() + "/card-classification/onnx/model.onnx"; }
 
-// Card classifier's fixed input size (matching model::card_classification.CARD_SIZE in Python).
+// Card classifier's fixed input size.
 constexpr int kCardWidth = 224;
 constexpr int kCardHeight = 320;
 

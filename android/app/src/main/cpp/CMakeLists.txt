@@ -16,8 +16,8 @@ set_target_properties(onnxruntime PROPERTIES
     IMPORTED_LOCATION "${NATIVE_SDK_DIR}/onnx/jni/${ANDROID_ABI}/libonnxruntime.so"
     INTERFACE_INCLUDE_DIRECTORIES "${NATIVE_SDK_DIR}/onnx/headers")
 
-# OpenCV: a minimal, size-scoped static build (core+imgproc+video+features --
-# only what corners_st.cpp/opt_flow_pyr_lk.cpp actually call: cv::goodFeaturesToTrack
+# OpenCV: a minimal, size-scoped static build (core+imgproc+video+features:
+# the only calls corners_st.cpp/opt_flow_pyr_lk.cpp make are cv::goodFeaturesToTrack
 # and cv::calcOpticalFlowPyrLK/buildOpticalFlowPyramid), not the full ~32 MB
 # Java-bindings AAR. Built by android/scripts/build_opencv_min.sh via the
 # buildMinimalOpenCv Gradle task in app/build.gradle.kts, which runs before this
@@ -39,7 +39,7 @@ endforeach()
 
 # Eigen (header-only). setdetect's core library needs it (sparse_propagator.cpp,
 # opt_flow_pyr_lk.hpp, detector.cpp), but desktop's find_package(Eigen3 CONFIG REQUIRED)
-# is tied to a vcpkg x64-linux triplet install -- not usable from an NDK cross-compile,
+# is tied to a vcpkg x64-linux triplet install, not usable from an NDK cross-compile,
 # and not something this build should couple itself to (would require a desktop vcpkg
 # build to already exist on disk). FetchContent pulls just the header tree, without
 # invoking Eigen's own CMakeLists (unneeded build-time cost for a header-only lib).
@@ -73,8 +73,8 @@ target_include_directories(setdetect_jni PRIVATE
 )
 
 # OpenCV's static libs are wrapped in --start-group/--end-group: core, imgproc,
-# video and features cross-reference each other (verified when prototyping this
-# build), so a single link-order pass isn't guaranteed to resolve everything.
+# video and features cross-reference each other, so a single link-order pass
+# isn't guaranteed to resolve everything.
 target_link_libraries(setdetect_jni
     onnxruntime
     android

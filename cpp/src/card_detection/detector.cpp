@@ -89,8 +89,8 @@ auto procrustes_pose(const std::array<Point2d, 4>& world) -> std::array<double, 
 
 // Exact 4-point perspective transform (mirrors cv::getPerspectiveTransform): solves the
 // determined 8x8 linear system for the homography mapping src[i] -> dst[i] exactly.
-auto solve_perspective_transform(const std::array<Point2d, 4>& src, const std::array<Point2d, 4>& dst)
-    -> std::optional<Eigen::Matrix3d> {
+auto solve_perspective_transform(const std::array<Point2d, 4>& src,
+                                 const std::array<Point2d, 4>& dst) -> std::optional<Eigen::Matrix3d> {
     Eigen::Matrix<double, 8, 8> m = Eigen::Matrix<double, 8, 8>::Zero();
     Eigen::Matrix<double, 8, 1> b;
     for (Eigen::Index i = 0; i < 4; ++i) {
@@ -514,17 +514,16 @@ auto occlusion_order(const std::vector<DetectedCard>& cards) -> std::vector<int>
     return order;
 }
 
-// Width/height of the classifier's input card crop (matches
-// model::card_classification.py's CARD_SIZE = (224, 320)).
+// Width/height of the classifier's input card crop; must match the exported
+// classification model's expected input size.
 constexpr int kClassCardWidth = 224;
 constexpr int kClassCardHeight = 320;
 constexpr uint8_t kLetterboxPadValue = 114;
 
-// Thin wrapper around cv::resize(INTER_LINEAR), which uses this exact
-// pixel-center-aligned sampling convention (`sx = (x+0.5)*scale - 0.5`) --
-// deliberately NOT the corner-aligned convention the (removed) hand-rolled
-// img_proc::resize_image used, since that would silently bias inference
-// against a model trained on cv2-resized images.
+// Thin wrapper around cv::resize(INTER_LINEAR). Its pixel-center-aligned sampling
+// convention (`sx = (x+0.5)*scale - 0.5`) must be preserved exactly: the model is
+// trained on cv2-resized images, and a corner-aligned convention would silently
+// bias inference.
 auto resize_linear(const cv::Mat& img, int new_rows, int new_cols) -> cv::Mat {
     if (new_rows == img.rows && new_cols == img.cols) {
         return img.clone();
@@ -584,8 +583,8 @@ auto letterbox(const cv::Mat& img, int target_h, int target_w) -> LetterboxResul
 
 // Greedy IoU-based non-maximum suppression; returns indices to keep, highest score
 // first.
-auto nms(const std::vector<std::array<double, 4>>& boxes_xyxy, const std::vector<double>& scores, double iou_threshold)
-    -> std::vector<int> {
+auto nms(const std::vector<std::array<double, 4>>& boxes_xyxy, const std::vector<double>& scores,
+         double iou_threshold) -> std::vector<int> {
     std::vector<int> order(scores.size());
     std::iota(order.begin(), order.end(), 0);
     std::sort(order.begin(), order.end(),
@@ -626,8 +625,8 @@ auto nms(const std::vector<std::array<double, 4>>& boxes_xyxy, const std::vector
 // [0:4]=box xywh, [4]=score, [5:17]=4 corners x (x, y, visibility) in letterboxed
 // coordinates. Applies confidence filtering, NMS, and undoes the letterbox transform.
 auto parse_corner_output(const float* rows, int n_rows, int n_cols, double conf_threshold, double iou_threshold,
-                         int img_h, int img_w, double ratio, double pad_left, double pad_top)
-    -> std::vector<CornerDetection> {
+                         int img_h, int img_w, double ratio, double pad_left,
+                         double pad_top) -> std::vector<CornerDetection> {
     std::vector<std::array<double, 4>> boxes_xyxy;
     std::vector<double> scores;
     std::vector<int> row_indices;
@@ -674,11 +673,11 @@ auto parse_corner_output(const float* rows, int n_rows, int n_cols, double conf_
 }
 
 // Perspective-warps `quad` (in img_rgb's coordinates) to an out_w x out_h rectangle,
-// then crops crop_frac off each edge and resizes back to out_w x out_h. Mirrors
-// Python's _warp_card, except it skips the bbox-crop-then-warp optimization step
-// (warping directly from the full image against the true quad coordinates is
-// numerically equivalent, since only the destination raster is ever iterated).
-// Returns nullopt for a degenerate (zero-area/non-invertible) quad.
+// then crops crop_frac off each edge and resizes back to out_w x out_h. Warps
+// directly from the full image against the true quad coordinates rather than
+// cropping to the quad's bounding box first: numerically equivalent, since only
+// the destination raster is ever iterated. Returns nullopt for a degenerate
+// (zero-area/non-invertible) quad.
 auto warp_card(const cv::Mat& img_rgb, const std::array<Point2d, 4>& quad, int out_w, int out_h,
                double crop_frac = 0.06) -> std::optional<cv::Mat> {
     const std::array<Point2d, 4> dst = {Point2d{0.0, 0.0}, Point2d{static_cast<double>(out_w), 0.0},
@@ -722,8 +721,8 @@ auto argmax4(const std::array<double, 4>& probs) -> int {
 
 // Fetches every output name of `session`, keeping the backing allocations alive in
 // `holders` for as long as the returned pointers are used.
-auto all_output_names(Ort::Session& session, std::vector<Ort::AllocatedStringPtr>& holders)
-    -> std::vector<const char*> {
+auto all_output_names(Ort::Session& session,
+                      std::vector<Ort::AllocatedStringPtr>& holders) -> std::vector<const char*> {
     const Ort::AllocatorWithDefaultOptions allocator;
     const size_t n = session.GetOutputCount();
     holders.reserve(n);
@@ -940,8 +939,8 @@ auto create_session(Ort::Env& env, const std::string& model_path, int device_id)
     return {env, model_path.c_str(), opts};
 }
 
-auto detect_card_corners(const cv::Mat& img_rgb, Ort::Session& session, double conf, double iou, int imgsz)
-    -> std::vector<CornerDetection> {
+auto detect_card_corners(const cv::Mat& img_rgb, Ort::Session& session, double conf, double iou,
+                         int imgsz) -> std::vector<CornerDetection> {
     const LetterboxResult lb = letterbox(img_rgb, imgsz, imgsz);
 
     const auto plane = static_cast<size_t>(imgsz) * static_cast<size_t>(imgsz);
@@ -1016,10 +1015,8 @@ auto classify_cards(const cv::Mat& img_rgb, const std::vector<std::array<Point2d
         session.Run(Ort::RunOptions{}, &kInputName, &input_tensor, 1, output_names.data(), output_names.size());
 
     // Bind each head's output by its declared ONNX name rather than assuming a fixed
-    // position: an older export had forward() return values in a different order than
-    // the declared output_names, so declared names didn't match the actual tensors
-    // (fixed in SetCardClassifier.forward(), model version set-card-class >= v02-...).
-    // Binding by name keeps this correct regardless of the graph's internal ordering.
+    // position: the graph's internal tensor order isn't guaranteed to match output_names,
+    // so binding by name is the only way to stay correct regardless of export ordering.
     const size_t count_i = find_output_index(output_names, "count");
     const size_t color_i = find_output_index(output_names, "color");
     const size_t fill_i = find_output_index(output_names, "fill");

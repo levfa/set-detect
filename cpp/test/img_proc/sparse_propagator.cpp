@@ -40,16 +40,11 @@ auto make_flat(int rows, int cols, uint8_t value) -> cv::Mat {
     return img;
 }
 
-// Points within one LK window of the frame border are legitimately noisier: the
-// tracker now samples reflected border pixels there (matching
-// cv::calcOpticalFlowPyrLK's winSize-padded pyramid) rather than rejecting the
-// point outright, but render()'s texture is an *analytic* function of unbounded
-// (x, y) rather than a real bounded image -- its reflected continuation doesn't
-// match the analytic continuation the way a real photo's border content
-// approximately does. Confirmed this same edge-only error pattern (points >4px
-// off, all within one window of the border) occurs identically with real
-// cv2.calcOpticalFlowPyrLK on this exact synthetic texture, so it's not a
-// tracking bug -- just skip these points in the strict per-point checks below.
+// Points within one LK window of the frame border are noisier: the tracker samples
+// reflected border pixels there (matching cv::calcOpticalFlowPyrLK's winSize-padded
+// pyramid), but the synthetic texture is an *analytic* function of unbounded (x, y),
+// so its reflected continuation doesn't match a real photo's border content. Skip
+// these points in the strict per-point checks below.
 auto near_border(const ip::Pt2f& p, int rows, int cols, float margin) -> bool {
     return p.x < margin || p.y < margin || p.x > static_cast<float>(cols - 1) - margin ||
            p.y > static_cast<float>(rows - 1) - margin;

@@ -31,8 +31,8 @@ inline auto list_videos(const std::string& root) -> std::vector<std::filesystem:
     return videos;
 }
 
-// Registers a required -d/--data-root option on `sub` (mirrors Python's
-// ui/data_args.py::add_video_root_arg), writing the parsed value into `video_root`.
+// Registers a required -d/--data-root option on `sub`, writing the parsed value
+// into `video_root`.
 inline void add_video_root_arg(CLI::App& sub, std::string& video_root) {
     sub.add_option("-d,--data-root", video_root, "Root directory of a video dataset")->required();
 }

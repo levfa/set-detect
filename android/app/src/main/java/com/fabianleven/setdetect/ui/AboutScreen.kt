@@ -117,7 +117,7 @@ fun AboutScreen(
             Spacer(Modifier.weight(1f))
             Spacer(Modifier.height(32.dp))
             // Nominative fair use of the SET® mark to name the game this app is
-            // a companion tool for -- not a claim of affiliation or endorsement.
+            // a companion tool for, not a claim of affiliation or endorsement.
             Text(
                 text = stringResource(R.string.about_disclaimer),
                 style = MaterialTheme.typography.bodySmall,

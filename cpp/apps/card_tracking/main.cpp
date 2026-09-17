@@ -40,9 +40,9 @@ constexpr int kDefaultProfileRuns = 200;
 
 // Times DetectionTracker::detect() over a real video's actual consecutive frames (read
 // directly via cv::VideoCapture, looping back to frame 0 if runs exceeds the frame
-// count) -- unlike profile-detection's independent-image cycling, this must preserve
+// count): unlike profile-detection's independent-image cycling, this must preserve
 // frame-to-frame continuity for SparsePropagator's optical flow to mean anything. Timing
-// happens entirely here in the app layer, wrapping the call with steady_clock --
+// happens here in the app layer, wrapping the call with steady_clock;
 // DetectionTracker itself carries no internal instrumentation.
 auto profile_tracking(const std::string& video_root, const setdetect::apps::DetectionArgs& det_args,
                       const setdetect::apps::TrackingArgs& track_args, int runs) -> int {
@@ -97,11 +97,10 @@ auto profile_tracking(const std::string& video_root, const setdetect::apps::Dete
 }
 
 // Plays one video with tracked detection overlaid on windows video_win/arrangement_win.
-// tracker.detect() is called synchronously on the FrameGrabber's own paced thread (it
-// must see every frame in strict sequence for correct optical-flow propagation); the
-// slow ONNX detection call itself still runs on DetectionTracker's own internal
-// AsyncCardDetector thread, so this stays cheap per frame. Returns true if the user
-// requested quit.
+// Detection is invoked synchronously on the FrameGrabber's own paced thread (it must
+// see every frame in strict sequence for correct optical-flow propagation); the slow
+// ONNX detection call itself still runs on the tracker's own internal background
+// thread, so this stays cheap per frame. Returns true if the user requested quit.
 auto play_video_with_tracking(const fs::path& video_path, const cd::CardDetector& detector,
                               const ip::SparsePropagatorParams& track_params, int max_side,
                               const std::string& video_win, const std::string& arrangement_win) -> bool {

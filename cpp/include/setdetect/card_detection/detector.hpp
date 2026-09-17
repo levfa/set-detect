@@ -69,7 +69,7 @@ struct Detection {
 auto match_card(const DetectedCard& dc) -> std::optional<set_game::Card>;
 
 // Opens an inference session for `model_path`. Tries the given CUDA device when
-// device_id >= 0, falling back to CPU (device_id < 0 skips CUDA entirely).
+// device_id >= 0, falling back to CPU (device_id < 0 skips CUDA).
 auto create_session(Ort::Env& env, const std::string& model_path, int device_id = 0) -> Ort::Session;
 
 // Runs the corner-keypoint (YOLO-pose) model on an RGB image and returns one

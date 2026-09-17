@@ -34,14 +34,14 @@ fun ArrangementView(
     selectedCards: Set<SetCard>,
     onToggleCard: (SetCard) -> Unit,
     modifier: Modifier = Modifier,
-    // Set by the tutorial while it's demonstrating excluding a card -- reports
+    // Set by the tutorial while it's demonstrating excluding a card: reports
     // that specific card's on-screen position back via onHighlightedCardPositioned
     // so the tutorial can draw a tap effect exactly where it is, rather than
     // anywhere generic on the arrangement.
     highlightedCard: SetCard? = null,
     onHighlightedCardPositioned: (Rect) -> Unit = {},
-    // Cards whose attributes exactly match another card currently on the board --
-    // either the same physical card really is there twice, or classification
+    // Cards whose attributes exactly match another card currently on the board:
+    // either the same physical card is there twice, or classification
     // misread one of them. Each gets a small badge; see BoardTab for the
     // corresponding screen-corner banner.
     duplicateCards: Set<SetCard> = emptySet()
@@ -52,7 +52,7 @@ fun ArrangementView(
     BoxWithConstraints(
         // Nothing clips a graphicsLayer's drawing to its layout bounds by
         // default in Compose, so a zoomed-in card could paint outside this
-        // view entirely -- over whatever's above it in BoardTab's Column
+        // view, over whatever's above it in BoardTab's Column
         // (the Manual Selection section), since that's drawn earlier and so
         // sits underneath in paint order. clipToBounds() pins the drawn
         // content to exactly this view's own area on all four sides,
@@ -93,9 +93,10 @@ fun ArrangementView(
         val viewWidth = maxWidth
         val viewHeight = maxHeight
 
-        // The arrangement is typically calculated in a coordinate system where cards 
-        // fit within a [0, 1] range. We scale this to fit our view while preserving aspect ratio.
-        // We shrink it by a factor (approx 1/sqrt(2)) to ensure it stays within bounds when rotated.
+        // The arrangement is calculated in a coordinate system where cards fit
+        // within a [0, 1] range, scaled here to fit the view while preserving
+        // aspect ratio and shrunk by a factor (approx 1/sqrt(2)) so it stays
+        // within bounds when rotated.
         val baseScale = minOf(viewWidth.value, viewHeight.value) * 0.7f
         val baseOffsetX = (viewWidth.value - baseScale) / 2
         val baseOffsetY = (viewHeight.value - baseScale) / 2
@@ -116,10 +117,10 @@ fun ArrangementView(
                 val rotationDegrees = Math.toDegrees(pose.angle.toDouble()).toFloat()
                 
                 // C++ arrangement gives center and width in normalized space. Height
-                // is derived from width via the fixed card aspect ratio (rather than
-                // trusting arrangement.cardHeight independently) so the box always
-                // matches CardView's own aspect ratio exactly -- an imprecise
-                // independent height estimate would otherwise letterbox or crop it.
+                // is derived from width via the fixed card aspect ratio, not the
+                // arrangement's own height, so the box always matches CardView's
+                // aspect ratio exactly; an independently-estimated height could
+                // letterbox or crop it.
                 val cardW = arrangement.cardWidth * baseScale
                 val cardH = cardW / CardAspectRatio
                 val cardX = pose.centerX * baseScale + baseOffsetX - (cardW / 2)

@@ -50,7 +50,7 @@ class ScopedThreadOverride {
 // Runs cv::calcOpticalFlowPyrLK against either a raw cv::Mat pair or a
 // pre-built pyramid pair (both are valid cv::InputArray types). Reads
 // next_pts as the initial guess first when kUseInitialFlow is set, since
-// OpenCV's nextPts is an in-out parameter -- callers must not reset next_pts
+// OpenCV's nextPts is an in-out parameter: callers must not reset next_pts
 // before calling this.
 template <typename PrevT, typename NextT>
 void run_lk(const PrevT& prev, const NextT& next, const std::vector<Pt2f>& prev_pts, std::vector<Pt2f>& next_pts,
@@ -132,8 +132,8 @@ OpticalFlowCalculator::OpticalFlowCalculator(OpticalFlowCalculator&&) noexcept =
 auto OpticalFlowCalculator::operator=(OpticalFlowCalculator&&) noexcept -> OpticalFlowCalculator& = default;
 
 // NOLINTBEGIN(readability-convert-member-functions-to-static) kept as instance
-// methods for API stability -- callers hold an OpticalFlowCalculator across
-// frames, and cv::calcOpticalFlowPyrLK genuinely needs no per-instance state
+// methods for API stability: callers hold an OpticalFlowCalculator across
+// frames, and cv::calcOpticalFlowPyrLK needs no per-instance state
 // to delegate to (OpenCV parallelizes internally), so there's nothing for
 // impl_ to hold; a future change that does need per-instance state (e.g. a
 // result cache) shouldn't have to change every call site's shape.

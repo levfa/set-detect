@@ -83,8 +83,8 @@ DetectionTracker::~DetectionTracker() = default;
 auto DetectionTracker::detect(const cv::Mat& img_rgb) -> std::optional<card_detection::Detection> {
     // Resize down to the working resolution once (only if larger); everything below
     // operates on `working`, so a fresh detection's and a propagated detection's corners
-    // always live in the same coordinate space. INTER_AREA matches Python's
-    // cli/card_tracking.py resolution-limiting resize.
+    // always live in the same coordinate space. Uses INTER_AREA, the recommended
+    // interpolation for downscaling.
     cv::Mat resized;
     const cv::Mat* working = &img_rgb;
     double to_orig = 1.0;

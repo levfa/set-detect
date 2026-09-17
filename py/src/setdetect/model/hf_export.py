@@ -4,8 +4,7 @@ import shutil
 
 def render_model_card(*, frontmatter: dict[str, str | list[str]], body: str) -> str:
     """Hand-format a README.md string: a YAML frontmatter block followed by a
-    Markdown body. No YAML library needed for content this simple (plain strings
-    and lists of strings)."""
+    Markdown body."""
     lines = ["---"]
     for key, value in frontmatter.items():
         if isinstance(value, list):
@@ -20,7 +19,7 @@ def render_model_card(*, frontmatter: dict[str, str | list[str]], body: str) -> 
 
 def stage_files(out_dir: pl.Path, files: list[tuple[pl.Path, str]]) -> None:
     """Copy each (local_path, path_in_repo) pair into out_dir, creating parent dirs
-    as needed. Only ever adds/overwrites the given files -- never deletes or
+    as needed. Only ever adds/overwrites the given files, never deletes or
     otherwise touches anything else already in out_dir."""
     for local_path, path_in_repo in files:
         dest = out_dir / path_in_repo

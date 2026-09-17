@@ -10,7 +10,7 @@ plugins {
 
 // OpenCV and Eigen are vendored/built from source (scripts/build_opencv_min.sh,
 // a CMake FetchContent) rather than resolved as Gradle dependencies, so
-// AboutLibraries can't auto-detect them -- these manual entries keep their
+// AboutLibraries can't auto-detect them; these manual entries keep their
 // attribution showing up in the Licenses screen anyway. ONNX Runtime stays a
 // normal Gradle dependency (see the `onnx` configuration below) and needs no
 // manual entry.
@@ -98,7 +98,7 @@ android {
     packaging {
         jniLibs {
             // libc++_shared.so is provided by both the ONNX Runtime AAR and
-            // our own native build (via ANDROID_STL=c++_shared) -- pick one
+            // our own native build (via ANDROID_STL=c++_shared); pick one
             // rather than failing on the duplicate.
             pickFirsts += setOf("**/libc++_shared.so")
         }
@@ -134,12 +134,12 @@ fun resolveNdkDir(): File {
     return versions.maxByOrNull { it.name } ?: error("No NDK found under $ndkRoot")
 }
 
-// Builds a minimal, size-scoped static OpenCV (core+imgproc+video+features --
-// only what corners_st.cpp/opt_flow_pyr_lk.cpp actually call) for each ABI
+// Builds a minimal, size-scoped static OpenCV (core+imgproc+video+features:
+// the only calls corners_st.cpp/opt_flow_pyr_lk.cpp make) for each ABI
 // this app ships, via scripts/build_opencv_min.sh. Declaring outputs.dir lets
 // Gradle skip re-running once already built for a given ABI/platform; the
 // script itself also stamp-checks OpenCV's own version so a change to it (or
-// to the script's build recipe -- inputs.file below) forces a rebuild.
+// to the script's build recipe, inputs.file below) forces a rebuild.
 val buildMinimalOpenCv = tasks.register<Exec>("buildMinimalOpenCv") {
     val abi = "arm64-v8a" // keep in sync with defaultConfig.ndk.abiFilters
     val platform = "android-24" // keep in sync with defaultConfig.minSdk

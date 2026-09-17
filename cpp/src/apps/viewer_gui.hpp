@@ -13,8 +13,8 @@
 #include <string>
 #include <vector>
 
-// Port of Python's ui/gui.py: keypress navigation codes and detection/arrangement
-// drawing helpers, used by the show-boards viewer.
+// Keypress navigation codes and detection/arrangement drawing helpers, used by
+// the show-boards viewer.
 namespace setdetect::apps {
 
 constexpr int kEscKey = 27;
@@ -122,9 +122,8 @@ inline void draw_detection(cv::Mat& vis, const card_detection::DetectedCard& dc)
     draw_label(vis, detail::card_label(dc), label_org);
 }
 
-// Bare outline overlay for one matched card's quad, matching Python's show-videos
-// style: gold/amber, no corner dots or attribute label, thickness scaling mildly with
-// frame size.
+// Bare outline overlay for one matched card's quad: gold/amber, no corner dots
+// or attribute label, thickness scaling mildly with frame size.
 inline void draw_matched_outline(cv::Mat& vis, const std::array<card_detection::Point2d, 4>& corners) {
     std::array<cv::Point, 4> pts{};
     for (size_t i = 0; i < 4; ++i) {

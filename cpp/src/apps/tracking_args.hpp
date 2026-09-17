@@ -9,8 +9,7 @@ struct TrackingArgs {
     img_proc::SparsePropagatorParams params;
 };
 
-// Registers --track-* flags (mirrors Python's card_tracking.py's --propagation-*/
-// --seed-*/--move-* flags) on `sub`.
+// Registers --track-* flags on `sub`.
 inline void add_tracking_args(CLI::App& sub, TrackingArgs& args) {
     sub.add_option("--track-history-size", args.params.history_size, "Propagation history ring-buffer size");
     sub.add_option("--track-scale", args.params.scale, "Working-resolution scale for propagation");

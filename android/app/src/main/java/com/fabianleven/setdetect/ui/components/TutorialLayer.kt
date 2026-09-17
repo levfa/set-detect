@@ -56,8 +56,8 @@ class TutorialTargets {
     var helpButton by mutableStateOf(Rect.Zero)
 
     // Position of whichever card ArrangementView is currently highlighting
-    // for the tutorial (see TutorialController.demoCard) -- used to draw a
-    // tap-ripple exactly on it during the Scan Edit demo.
+    // for the tutorial, used to draw a tap-ripple exactly on it during the
+    // Scan Edit demo.
     var demoCardRect by mutableStateOf(Rect.Zero)
 }
 
@@ -73,11 +73,11 @@ fun TutorialLayer(
 ) {
     // Small "still the tutorial" badge for scripted demos that either run
     // long (Manual Selection: scroll, auto-select, scripted tap back to
-    // Board, then a beat to view the result -- part of which hides the main
-    // overlay entirely, see the early return below) or where the main card's
-    // own fade-out isn't quite enough on its own (Scan Edit). Positioned
-    // per-step rather than centered/spotlighted like the main overlay, so it
-    // never covers the board/grid it's meant to be explaining.
+    // Board, then a beat to view the result, hiding the main overlay
+    // entirely for that whole stretch), or where the main card's own
+    // fade-out isn't quite enough on its own (Scan Edit). Positioned
+    // per-step, not centered/spotlighted like the main overlay, so it never
+    // covers the board/grid it's meant to be explaining.
     when {
         tutorial.active && tutorial.isDemoPlaying && tutorial.currentStep == TutorialStep.MANUAL_SELECTION ->
             DemoIndicatorBadge(anchor = targets.deckTab, corner = BadgeCorner.SCREEN_TOP_END)
@@ -86,15 +86,14 @@ fun TutorialLayer(
     }
 
     // A tap-ripple drawn exactly on the card the Scan Edit demo is currently
-    // toggling (see TutorialController.demoCard/demoCardTapTrigger), so the
-    // gray-out reads as the result of a tap rather than happening on its own.
+    // toggling, so the gray-out reads as caused by a tap.
     if (tutorial.active && tutorial.currentStep == TutorialStep.SCAN_EDIT) {
         TapRippleIndicator(bounds = targets.demoCardRect, key = tutorial.demoCardTapTrigger)
     }
 
-    // A scripted tab switch is in progress -- hide the overlay entirely (not
-    // just fade it) so the tab row is fully visible/uncovered, and show a
-    // tap ripple where the "tap" is landing.
+    // A scripted tab switch is in progress: hide the overlay entirely (not
+    // just fade it) so the tab row is fully visible, and show a tap ripple
+    // where the "tap" is landing.
     tutorial.simulatedTapTarget?.let { target ->
         val bounds = if (target == BOARD_TAB_INDEX) targets.boardTab else targets.deckTab
         TapRippleIndicator(bounds = bounds)
@@ -106,12 +105,12 @@ fun TutorialLayer(
         TutorialStep.INTRO -> emptyList()
         TutorialStep.SCAN_CARDS -> listOf(targets.fab)
         TutorialStep.SCAN_APPEARS -> listOf(targets.arrangement)
-        // Highlights both the sets/cards indicator and the button at once --
+        // Highlights both the sets/cards indicator and the button at once:
         // the count is what motivates tapping Reveal, so showing them
         // together makes that connection clear.
         TutorialStep.SETS_AND_REVEAL -> listOf(targets.selectionInfo, targets.revealSetsButton)
         TutorialStep.SCAN_EDIT -> listOf(targets.arrangement)
-        // Highlights the Manual Selection row and the Deck tab together --
+        // Highlights the Manual Selection row and the Deck tab together:
         // both are ways of getting to the same manual-selection feature.
         TutorialStep.MANUAL_SELECTION_INTRO -> listOf(targets.manualSelection, targets.deckTab)
         TutorialStep.MANUAL_SELECTION -> listOf(targets.deck)
@@ -150,7 +149,7 @@ fun TutorialLayer(
         isDemoPlaying = tutorial.isDemoPlaying,
         // Both of these steps' targets (the help icon, the tab row) sit right
         // at the top edge, which single-target placement would otherwise
-        // anchor to the bottom -- centered reads better for them.
+        // anchor to the bottom; centered reads better for them.
         forceCenter = tutorial.currentStep == TutorialStep.RE_RUN_TUTORIAL ||
             tutorial.currentStep == TutorialStep.TABS_ARE_VIEWS,
         startupToggleChecked = if (tutorial.currentStep == TutorialStep.RE_RUN_TUTORIAL) tutorial.showOnStartup else null,
@@ -159,15 +158,15 @@ fun TutorialLayer(
 }
 
 // Where DemoIndicatorBadge sits relative to its anchor: pinned to the
-// screen's own right edge (just below the anchor, for the Deck tab -- the
+// screen's own right edge (just below the anchor, for the Deck tab, since the
 // badge's width varies by locale, so anchoring to the anchor's own edge
 // there would drift), or tucked into the anchor's own bottom-left corner
 // (for the arrangement/scan view, which already sits well inside the screen).
 private enum class BadgeCorner { SCREEN_TOP_END, ANCHOR_BOTTOM_START }
 
-// A small, unobtrusive pill -- deliberately not centered or spotlighted like
+// A small, unobtrusive pill, deliberately not centered or spotlighted like
 // the main overlay card, since that would cover the board/grid the demo is
-// actually showing off.
+// showing off.
 @Composable
 private fun DemoIndicatorBadge(anchor: Rect, corner: BadgeCorner) {
     if (anchor == Rect.Zero) return
@@ -184,7 +183,7 @@ private fun DemoIndicatorBadge(anchor: Rect, corner: BadgeCorner) {
             BadgeCorner.ANCHOR_BOTTOM_START -> {
                 boxAlignment = Alignment.TopStart
                 // No measured badge height to anchor its bottom edge exactly
-                // against anchor.bottom -- a fixed upward shift comfortably
+                // against anchor.bottom, so a fixed upward shift comfortably
                 // larger than the badge's own height reads as "bottom-left of
                 // the view" closely enough without needing a second layout pass.
                 offset = IntOffset(x = (anchor.left + 8.dp.toPx()).toInt(), y = (anchor.bottom - 44.dp.toPx()).toInt())
@@ -223,11 +222,11 @@ private fun DemoIndicatorBadge(anchor: Rect, corner: BadgeCorner) {
 }
 
 // A brief expanding, fading circle centered on `bounds`, used to make a
-// scripted tap (a tab switch, or the Scan Edit demo toggling a card) read as
-// an actual tap rather than an unexplained instant change. `key` restarts the
-// animation on demand -- needed when `bounds` stays the same across repeat
-// taps on the same spot (e.g. the same card toggled off then back on), where
-// `bounds` alone wouldn't change to naturally retrigger it.
+// scripted tap (a tab switch, or the Scan Edit demo toggling a card) read
+// as an actual tap, not an unexplained instant change. `key` restarts the
+// animation on demand: needed when `bounds` stays the same across repeat
+// taps on the same spot (e.g. the same card toggled off then back on),
+// where `bounds` alone wouldn't change to naturally retrigger it.
 @Composable
 private fun TapRippleIndicator(bounds: Rect, modifier: Modifier = Modifier, key: Any = bounds) {
     if (bounds == Rect.Zero) return

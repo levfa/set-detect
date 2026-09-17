@@ -23,7 +23,7 @@ target_include_directories(setdetect_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
 # transitively through its PUBLIC ${OpenCV_LIBS} (plain absolute .so paths, not an
 # IMPORTED target). Whether CMake's automatic build-tree RPATH computation picks up
 # such transitively-inherited raw paths for the final executable isn't consistent
-# across CMake versions (observed missing on CMake 4.x, present on 3.28) -- set it
+# across CMake versions (observed missing on CMake 4.x, present on 3.28); set it
 # explicitly instead of relying on that, mirroring the apps' own BUILD_RPATH below.
 set_target_properties(setdetect_tests PROPERTIES
     BUILD_RPATH "${ONNXRUNTIME_ROOT}/lib;${OpenCV_ROOT_PATH}/lib"
@@ -58,7 +58,7 @@ if(SETDETECT_BUILD_INTEGRATION_TESTS)
 endif()
 
 # CLI smoke tests: plain CTest entries invoking the already-built app binaries
-# directly, no GTest needed. Only meaningful when the apps are actually built.
+# directly, no GTest needed. Only meaningful when the apps are built.
 if(SETDETECT_BUILD_APPS)
     foreach(app_target IN ITEMS card_detection card_tracking corners_st opt_flow_pyr_lk sparse_propagator tps_rbf
                                  frame_grabber)

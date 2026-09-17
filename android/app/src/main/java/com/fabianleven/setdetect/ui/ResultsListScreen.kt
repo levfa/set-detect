@@ -102,7 +102,7 @@ fun SetItem(set: List<SetCard>, modifier: Modifier = Modifier) {
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
         ) {
             set.forEach { card ->
-                // Not an actual selection UI -- isSelected here just gets the
+                // Not a selection UI: isSelected here just gets the
                 // crisp/full-contrast card style, not the muted "unselected" one.
                 CardView(card = card, isSelected = true, modifier = Modifier.size(width = 70.dp, height = 110.dp))
             }

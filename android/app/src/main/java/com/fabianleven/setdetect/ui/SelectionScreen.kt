@@ -60,40 +60,37 @@ fun SelectionScreen(
 
     // The tutorial needs to scroll the Deck tab's grid to demonstrate
     // manual selection, but that requires LazyGridState, which only exists
-    // here in Compose -- so it's wired in via a callback the controller
+    // here in Compose, so it's wired in via a callback the controller
     // invokes and awaits, rather than the controller owning the grid itself.
     LaunchedEffect(viewModel.tutorial.currentStep) {
         viewModel.tutorial.onScrollRequest = {
             // A suspend callback, awaited by the controller's own demo
-            // coroutine -- not fire-and-forget -- so the reset and the scroll
-            // stroke are guaranteed to actually finish, in order, before the
-            // controller moves on to selecting cards. The
-            // animation itself, though, must run on a coroutine with access
-            // to Compose's MonotonicFrameClock (which viewModelScope, where
-            // this suspend lambda's body actually executes, does not have)
-            // -- launch it on `scope` (which does) and join that job rather
-            // than running the scroll calls directly here.
+            // coroutine, so the reset and scroll stroke finish in order
+            // before it moves on to selecting cards. This lambda body runs
+            // on viewModelScope, which lacks Compose's MonotonicFrameClock
+            // needed for the animation, so launch it on `scope` (which has
+            // one) and join that job instead.
             scope.launch {
-                // Snap to a known starting point first (silently -- this isn't
+                // Snap to a known starting point first (silently, this isn't
                 // meant to read as a scroll itself) so the demo always looks the
                 // same regardless of wherever the grid happened to be scrolled to
                 // when the tutorial was opened.
                 gridState.scrollToItem(0)
                 delay(500)
                 // One natural downward scroll stroke, covering most of a
-                // screenful -- not a single scrollToItem jump to a specific index.
-                // A jump like that doesn't read as an actual scroll gesture, and
+                // screenful, not a single scrollToItem jump to a specific index.
+                // A jump like that doesn't read as a scroll gesture, and
                 // for a card far enough down the list it can't be "reached" by
-                // anything a real scroll gesture would actually land on either.
+                // anything a real scroll gesture would land on either.
                 val strokeDistance = gridState.layoutInfo.viewportSize.height * 0.85f
                 gridState.animateScrollBy(strokeDistance, animationSpec = tween(700, easing = FastOutSlowInEasing))
                 delay(500)
             }.join()
 
-            // Which cards actually end up centered depends on screen size, grid
-            // column count, and item height -- all device-specific -- so don't
+            // Which cards end up centered depends on screen size, grid
+            // column count, and item height (all device-specific), so don't
             // guess an index: read gridState's real post-scroll layout and find
-            // whichever row is actually closest to the viewport's vertical
+            // whichever row is closest to the viewport's vertical
             // center, then map that row's item indices back to cards. This
             // adapts to any device instead of being tuned for one.
             val viewportCenter = gridState.layoutInfo.viewportSize.height / 2f
@@ -116,9 +113,9 @@ fun SelectionScreen(
         Scaffold(
             topBar = {
                 CenterAlignedTopAppBar(
-                    // The default navigation-icon tint (onSurface) is darker than the
-                    // action-icon tint (onSurfaceVariant) that HelpOutline already gets,
-                    // which made the two top-bar icons look mismatched. Match them.
+                    // Match the navigation-icon tint to the action-icon tint
+                    // (onSurfaceVariant) that HelpOutline already gets; the
+                    // default (onSurface) is darker and looks mismatched next to it.
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                         navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     ),
@@ -129,7 +126,7 @@ fun SelectionScreen(
                                 targets.selectionInfo = it.boundsInWindow()
                             }
                         ) {
-                            // Sets found is the number that actually matters -- lead with
+                            // Sets found is the number that matters; lead with
                             // it, larger and in the theme color, and demote the card
                             // count to a small subtitle underneath.
                             Text(
@@ -193,7 +190,7 @@ fun SelectionScreen(
                         onClick = { viewModel.clearSelection() },
                         // Clear resets both the selection and the scan, so it
                         // should stay enabled if either one has something to
-                        // clear -- not just the selection.
+                        // clear, not just the selection.
                         enabled = selectedCards.isNotEmpty() || viewModel.scannedDetection != null
                     ) {
                         Text(stringResource(R.string.selection_clear))
@@ -302,27 +299,27 @@ private fun BoardTab(
     val selectedCards = viewModel.selectedCards.toSet()
     // detection.arrangement.cardPoses[i] corresponds to the i-th *matched* card
     // (native's detect_cards() fits it over matched_cards, which drops any
-    // detectedCards entry that failed classification -- card == null -- while
+    // detectedCards entry that failed classification (card == null) while
     // preserving order), not the i-th entry of detectedCards. Reconstruct that
     // same matched-only sequence here rather than passing the raw list
     // (with null gaps for unmatched cards) to ArrangementView, which indexes
-    // cards by pose position: any unmatched card previously threw every
-    // later card's rendering out of alignment with its pose, hiding some and
+    // cards by pose position: an unmatched card would throw every later
+    // card's rendering out of alignment with its pose, hiding some and
     // misplacing others.
     val matchedCards = remember(detection) { detection?.detectedCards?.mapNotNull { it.card } ?: emptyList() }
     // Selected cards that aren't part of the current scan (or there is no scan at
-    // all yet) -- these came from the Deck tab and would otherwise be invisible
+    // all yet): these came from the Deck tab and would otherwise be invisible
     // here, making it look like they'd been lost.
     val manualSelectionCards = remember(selectedCards, matchedCards) {
         selectedCards.filter { it !in matchedCards }
     }
     // A card matching another one currently on the board violates the game's one-of-each
-    // rule -- either the same physical card really is there twice, or classification
+    // rule: either the same physical card is there twice, or classification
     // misread one of them. Flag it rather than silently miscounting/misreading the board.
     val duplicateCards = remember(matchedCards) { findDuplicateCards(matchedCards) }
 
     Column(modifier = modifier) {
-        // Always visible -- even with nothing selected yet, the Add tile is
+        // Always visible: even with nothing selected yet, the Add tile is
         // itself the invitation to go pick some cards manually.
         Text(
             text = stringResource(R.string.selection_manual_selection),

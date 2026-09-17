@@ -25,7 +25,7 @@ private val examplePlacements = listOf(
     ExampleCardPlacement(0.88f, 0.74f, -0.06f)
 )
 
-// Indices into getAllCards() (81 cards total) used for the example scan --
+// Indices into getAllCards() (81 cards total) used for the example scan:
 // spread out and disjoint.
 private val exampleMatchedIndices = listOf(1, 6, 12, 18, 24, 30, 36, 42, 48, 54, 60, 66)
 

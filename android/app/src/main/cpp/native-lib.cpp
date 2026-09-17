@@ -19,11 +19,11 @@ using namespace setdetect;
 namespace {
 
 // Owns the sync detector plus a tracker wrapping it (tracker only holds a reference, so
-// the detector must outlive it -- keeping both together in one heap-allocated struct
-// makes that lifetime trivially correct). detect() stays fast per call: the ONNX
-// inference itself runs on the tracker's own internal background thread, so this is
-// safe to call once per analyzed camera frame without blocking the caller on inference
-// latency.
+// the detector must outlive it: keeping both together in one heap-allocated struct
+// makes that lifetime trivially correct). Calling into the tracker stays fast per call:
+// the ONNX inference itself runs on the tracker's own internal background thread, so
+// this is safe to call once per analyzed camera frame without blocking the caller on
+// inference latency.
 struct NativeDetector {
     card_detection::CardDetector detector;
     card_tracking::DetectionTracker tracker;

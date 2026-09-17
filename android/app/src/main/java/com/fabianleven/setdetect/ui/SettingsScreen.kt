@@ -28,7 +28,7 @@ import com.fabianleven.setdetect.R
 
 private data class LanguageOption(val tag: String?, val labelRes: Int)
 
-// tag == null means "follow the system language" -- represented to
+// tag == null means "follow the system language", represented to
 // AppCompatDelegate as an empty locale list, not a specific one.
 private val languageOptions = listOf(
     LanguageOption(null, R.string.settings_language_system_default),
@@ -85,7 +85,7 @@ fun SettingsScreen(
             HorizontalDivider()
 
             // A single row opening a dialog, rather than an inline list of
-            // radio buttons -- that doesn't scale as more languages are
+            // radio buttons, which doesn't scale as more languages are
             // added, whereas the dialog's LazyColumn does.
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_language)) },
@@ -133,8 +133,8 @@ private fun LanguagePickerDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.settings_language)) },
         text = {
-            // LazyColumn (not a plain Column, unlike the old inline list) so
-            // this keeps working however many languages get added later.
+            // LazyColumn, so this keeps working however many languages get
+            // added later.
             LazyColumn(modifier = Modifier.selectableGroup()) {
                 items(languageOptions) { option ->
                     val selected = option.tag == selectedTag

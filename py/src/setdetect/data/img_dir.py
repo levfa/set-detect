@@ -32,7 +32,7 @@ class CardLabel:
     ``path`` is relative to the dataset root. ``quad`` holds the four corners in
     original image pixels as predicted. ``status`` is always set: "set" (all four
     attributes), "not-set" (a real detection that is not a SET card), "garbage"
-    (detection to be ignored entirely), or "unfinished" (partially labeled).
+    (detection to be ignored), or "unfinished" (partially labeled).
     """
 
     path: str

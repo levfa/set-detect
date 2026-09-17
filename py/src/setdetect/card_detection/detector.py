@@ -527,26 +527,20 @@ def _warp_card(
 ) -> np.ndarray:
     w, h = size
 
-    # Compute bounding box of the quad in the original image
     x_min = int(np.min(quad[:, 0]))
     x_max = int(np.max(quad[:, 0]))
     y_min = int(np.min(quad[:, 1]))
     y_max = int(np.max(quad[:, 1]))
 
-    # Add padding around the quad, clamp to image borders
     pad = max(warp_pad, 0)
     x_min = max(0, x_min - pad)
     y_min = max(0, y_min - pad)
     x_max = min(img.shape[1], x_max + pad)
     y_max = min(img.shape[0], y_max + pad)
 
-    # Crop the image to the padded bounding box
     img_cropped = img[y_min:y_max, x_min:x_max]
-
-    # Adjust quad coordinates to the cropped image, ensure float32
     quad_adj = (quad - [x_min, y_min]).astype(np.float32)
 
-    # Perspective transform from adjusted quad to rectangle
     dst = np.array([[0, 0], [w, 0], [w, h], [0, h]], dtype=np.float32)
     persp_t = cv2.getPerspectiveTransform(quad_adj, dst)
     warped = cv2.warpPerspective(img_cropped, persp_t, (w, h))

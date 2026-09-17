@@ -7,19 +7,17 @@
 
 namespace setdetect::interpolation {
 
-// Thin-plate-spline radial basis function interpolator, mirroring
-// scipy.interpolate.RBFInterpolator(kernel="thin_plate_spline"): the interpolant is
-// f(x) = sum_i w_i * TPS(||x - nodes_i||) + (a degree-1 polynomial in x). The
-// polynomial term isn't optional decoration -- without it the interpolant has no way
-// to represent an affine field (e.g. a pure translation) correctly once queried near or
-// outside the convex hull of the training nodes, which is the common case for real
-// tracking data. Solves the standard augmented system:
+// Thin-plate-spline radial basis function interpolator, matching
+// scipy.interpolate.RBFInterpolator(kernel="thin_plate_spline"). The interpolant is
+// f(x) = sum_i w_i * TPS(||x - nodes_i||) + a degree-1 polynomial in x; the polynomial
+// term is required to represent an affine field (e.g. a pure translation) correctly
+// when queried outside the convex hull of the training nodes, common for tracking
+// data. Solves the standard augmented system:
 //   (K + smoothing*I) * w + P * c = outputs
 //   P^T * w                       = 0
-// where K is the RBF kernel matrix and P's rows are [1, x, y, ...] per node (the
-// minimum polynomial degree scipy uses for this kernel). smoothing=0 (the default,
-// matching scipy's own class default) gives exact interpolation through every node;
-// smoothing>0 regularizes the fit instead of passing exactly through (noisy) points.
+// where K is the RBF kernel matrix and P's rows are [1, x, y, ...] per node (scipy's
+// minimum polynomial degree for this kernel). smoothing=0 (scipy's own default) gives
+// exact interpolation through every node; smoothing>0 regularizes instead.
 class ThinPlateSplineRBF {
   public:
     explicit ThinPlateSplineRBF(const std::vector<Eigen::VectorXd>& inputs, const std::vector<Eigen::VectorXd>& outputs,

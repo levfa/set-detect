@@ -43,7 +43,7 @@ TEST(TpsRbfTest, KnownValues2DTo1D) {
     si::ThinPlateSplineRBF const rbf(inputs, outputs);
 
     // Reference values generated with scipy.interpolate.RBFInterpolator(kernel=
-    // "thin_plate_spline", smoothing=0.0) -- these 4 corner outputs are exactly the
+    // "thin_plate_spline", smoothing=0.0): these 4 corner outputs are exactly the
     // affine function 1 + x + 2y, and the degree-1-polynomial-aware interpolant
     // reproduces that affine function exactly.
     struct Query {
@@ -133,11 +133,10 @@ TEST(TpsRbfTest, KnownValues1D) {
     }
 }
 
-// Regression test for a real bug: without the polynomial term, a pure-translation
-// field (the single most common case in real camera tracking) is not represented
-// correctly once queried outside the training nodes' convex hull -- confirmed to be
-// off by hundreds of units before this was fixed. scipy.interpolate.RBFInterpolator
-// recovers the exact translation even far outside the training data; this must too.
+// A pure-translation field (the most common case in real camera tracking) must
+// extrapolate exactly outside the training nodes' convex hull, matching
+// scipy.interpolate.RBFInterpolator: without the polynomial term the interpolant
+// cannot represent an affine field there.
 TEST(TpsRbfTest, TranslationFieldExtrapolatesExactly) {
     std::vector<Eigen::VectorXd> const inputs = {v2(0.0, 0.0),   v2(10.0, 0.0), v2(0.0, 10.0),
                                                  v2(10.0, 10.0), v2(5.0, 5.0),  v2(3.0, 8.0)};

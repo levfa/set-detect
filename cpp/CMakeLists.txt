@@ -36,12 +36,12 @@ set_target_properties(onnxruntime::onnxruntime PROPERTIES
 )
 
 # Dependency: cuDNN. Needed only at runtime, by ONNX Runtime's CUDA execution provider
-# (libonnxruntime_providers_cuda.so), which is itself dlopen()'d by libonnxruntime.so --
+# (libonnxruntime_providers_cuda.so), which is itself dlopen()'d by libonnxruntime.so,
 # not linked by us. That provider .so carries no RPATH of its own, so RPATH on our own
 # executables cannot help it find libcudnn: CUDNN_ROOT/lib must be on LD_LIBRARY_PATH in
 # the environment that runs the binary (see cuDNN section of ~/.zshrc). This check just
 # catches a misconfigured/missing CUDNN_ROOT early, at configure time. Only the versioned
-# .so (e.g. libcudnn.so.9) is present -- no unversioned dev symlink -- so this is a plain
+# .so (e.g. libcudnn.so.9) is present, with no unversioned dev symlink, so this is a plain
 # existence check rather than find_library().
 if(NOT DEFINED ENV{CUDNN_ROOT})
     message(FATAL_ERROR "CUDNN_ROOT environment variable is not set.")
@@ -58,9 +58,9 @@ find_package(Eigen3 CONFIG REQUIRED)
 find_package(Threads REQUIRED)
 
 # Dependency: OpenCV. Used by the core library itself (corners_st.cpp,
-# opt_flow_pyr_lk.cpp -- thin wrappers around cv::goodFeaturesToTrack and
+# opt_flow_pyr_lk.cpp: thin wrappers around cv::goodFeaturesToTrack and
 # cv::calcOpticalFlowPyrLK, not our own reimplementations), not just desktop
-# apps -- on Android this is a minimal core+imgproc+video+features build (see
+# apps: on Android this is a minimal core+imgproc+video+features build (see
 # android/app/build.gradle.kts), but on desktop it's simplest to reuse the
 # same full conda-forge install the desktop apps below already need.
 if(NOT DEFINED ENV{OpenCV_ROOT})
@@ -94,7 +94,7 @@ if(SETDETECT_BUILD_APPS)
     find_package(CLI11 CONFIG REQUIRED)
 
     # Library for executables. OpenCV comes transitively via setdetect (linked
-    # PUBLIC above), which now depends on it directly -- no need to relist it.
+    # PUBLIC above, which depends on it directly), so it doesn't need relisting.
     add_library(setdetect_cv STATIC
         src/img_acq/frame_grabber.cpp)
     target_link_libraries(setdetect_cv PUBLIC setdetect)

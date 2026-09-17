@@ -59,7 +59,7 @@ fun TutorialOverlay(
     isLastStep: Boolean,
     isDemoPlaying: Boolean = false,
     forceCenter: Boolean = false,
-    // Non-null only on the last step -- lets the user turn off "show
+    // Non-null only on the last step: lets the user turn off "show
     // tutorial on startup" right where they're told they can restart it
     // later, instead of only from Settings. Null hides the checkbox.
     startupToggleChecked: Boolean? = null,
@@ -89,7 +89,7 @@ fun TutorialOverlay(
 
         // The text card must never sit on top of the element(s) it's explaining,
         // so instead of always centering it, anchor it to whichever half of the
-        // screen the (single) target *isn't* in -- below a target in the top
+        // screen the (single) target *isn't* in: below a target in the top
         // half, above one in the bottom half. Falls back to centered when
         // there's no target (INTRO), the target is too large to leave anywhere
         // clear, there are multiple separate targets to highlight at once
@@ -104,7 +104,7 @@ fun TutorialOverlay(
         val infiniteTransition = rememberInfiniteTransition(label = "spotlight")
         val pulseOffsetPx by infiniteTransition.animateFloat(
             initialValue = 0f,
-            targetValue = with(density) { 3.dp.toPx() }, // Tightened absolute 3dp pulse
+            targetValue = with(density) { 3.dp.toPx() },
             animationSpec = infiniteRepeatable(
                 animation = tween(600, easing = LinearOutSlowInEasing),
                 repeatMode = RepeatMode.Reverse
@@ -150,7 +150,7 @@ fun TutorialOverlay(
                     )
                 } else {
                     val spotlightPadding = padding
-                    // For rectangles, we keep it centered by symmetric clamping
+                    // Rectangles stay centered via symmetric clamping
                     val halfW = (targetRect.width / 2f + spotlightPadding).coerceAtMost(minOf(center.x, size.width - center.x) - safetyMargin)
                     val halfH = (targetRect.height / 2f + spotlightPadding).coerceAtMost(minOf(center.y, size.height - center.y) - safetyMargin)
 
@@ -191,7 +191,7 @@ fun TutorialOverlay(
         Card(
             modifier = Modifier
                 .align(cardAlignment)
-                // Keep clear of the status bar / gesture nav bar -- BottomCenter
+                // Keep clear of the status bar / gesture nav bar: BottomCenter
                 // and TopCenter alignment would otherwise push the card right up
                 // against (or under) them.
                 .windowInsetsPadding(WindowInsets.systemBars)

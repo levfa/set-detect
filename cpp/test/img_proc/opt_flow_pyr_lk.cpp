@@ -115,10 +115,9 @@ TEST(OptFlowPyrLkTest, UniformRegionFails) {
 TEST(OptFlowPyrLkTest, FarOutOfBoundsPointFails) {
     const cv::Mat prev = render_translated(kRows, kCols, 0, 0);
     const cv::Mat& next = prev;
-    // Real cv::calcOpticalFlowPyrLK pads each pyramid level with a winSize
-    // border and tracks points that merely hang partway off the image edge
-    // (confirmed: (-5, 10) tracks successfully here) -- only a point genuinely
-    // far outside the image should fail.
+    // cv::calcOpticalFlowPyrLK pads each pyramid level with a winSize border and
+    // tracks points that hang partway off the image edge (e.g. (-5, 10) tracks
+    // successfully); only a point far outside the image should fail.
     const std::vector<ip::Pt2f> pts = {{200.0F, 200.0F}};
     std::vector<ip::Pt2f> next_pts;
     std::vector<uint8_t> status;

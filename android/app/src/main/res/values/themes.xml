@@ -1,11 +1,11 @@
 <resources>
 
-    <!-- NoActionBar: without it, MainActivity now being an AppCompatActivity
+    <!-- NoActionBar: without it, MainActivity being an AppCompatActivity
          (required for per-app language switching, see MainActivity.kt) would
          render its own native title bar above the Compose Scaffold's own
          top app bar, a redundant, un-styled banner neither asked for.
          Parented on plain AppCompat, not MaterialComponents, since the app
-         is all Jetpack Compose Material3, so nothing actually needs the
+         is all Jetpack Compose Material3, so nothing needs the
          extra com.google.android.material:material dependency that
          MaterialComponents' theme requires; AppCompat alone (already a
          dependency) satisfies AppCompatActivity's own theme requirement

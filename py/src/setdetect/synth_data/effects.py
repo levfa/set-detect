@@ -22,10 +22,10 @@ def make_specular_highlight(
 
     Returns ``None`` when this card gets no highlight. Layer values are a 0..1
     brightness fraction (multiply by 255 to add to a uint8 image). Blobs are soft
-    2-D Gaussians computed on a ``res_scale``-sized grid (the fold in
-    ``make_image`` resizes them onto the card), which is visually equivalent but
-    far cheaper. Randomness comes from ``rng`` (a fresh Generator when None)
-    so generation stays deterministic under ``np.random.default_rng(seed)``.
+    2-D Gaussians computed on a smaller ``res_scale``-sized grid for speed; the
+    caller resizes the returned layer onto the full card. Randomness comes from
+    ``rng`` (a fresh Generator when None) so generation stays deterministic under
+    ``np.random.default_rng(seed)``.
     """
     rng = rng if rng is not None else np.random.default_rng()
     if rng.random() >= prob:
@@ -150,7 +150,7 @@ def make_defocus_blurrer(
     def _blur(img: np.ndarray, rng: np.random.Generator) -> None:
         if cfg.defocus_prob <= 0 or rng.random() >= cfg.defocus_prob:
             return
-        # floor at half the cap so triggered boards are clearly out of focus
+        # floor at half the cap so triggered boards are out of focus
         sigma = cfg.defocus_sigma * rng.uniform(0.5, 1.0)
         k = max(int(math.ceil(sigma * 3)) | 1, 3)
         img[...] = cv2.GaussianBlur(img, (k, k), sigma)
@@ -176,9 +176,9 @@ def make_card_shading(
 
     Returns ``None`` when this card gets no shading. The returned factor is a single
     per-pixel value in ``[max(1 - amp, 0), 1.0]`` broadcast identically across all three
-    channels (never brightens, never tints one channel differently from another -- a real
+    channels (never brightens, never tints one channel differently from another: a real
     shadow/occlusion effect, not a lighting-color effect), so ``factor * 255`` always fits a
-    uint8 and can't wrap around the way a >1.0 factor previously did. Falls off smoothly (via
+    uint8 without wraparound. Falls off smoothly (via
     a power curve, not a hard linear cutoff) along the board's light axis rotated into the
     card's own frame (``directional``, when ``direction`` is "global") or radially from the
     card's center (``vignette``, e.g. corners tucked under a neighbor). Randomness comes from
@@ -244,15 +244,12 @@ def make_shadow_drawer(
         """Hairline shadow sliver where a not-quite-flat card lifts off the table.
 
         ``alpha`` is the card's own just-warped alpha channel (canvas-space, top-left at
-        ``origin``) -- using the card's real, already-feathered silhouette rather than its
-        rectangular bounding box is what confines this to a genuine sliver: shifting
-        ``alpha`` by a tiny offset and keeping only where that makes it *more* opaque than
-        the original gives exactly the region a slightly tilted card would newly cover --
-        at most two adjacent edges (whichever face the offset direction), tapering along
-        each rather than running the full edge length, and exactly zero elsewhere because
-        the (identical) trim/feather on both copies cancels out in the subtraction. Using
-        the card's own bounding box instead (the old behavior) always showed a shadow-tinted
-        border matching that trim, on all four sides, regardless of ``light_dir``.
+        ``origin``). Shifting ``alpha`` by a tiny offset and keeping only where that makes
+        it *more* opaque than the original gives exactly the region a slightly tilted card
+        would newly cover: a sliver along at most two adjacent edges (whichever face the
+        offset direction), tapering along each rather than running the full edge length,
+        and exactly zero elsewhere because the identical trim/feather on both copies
+        cancels out in the subtraction.
         ``offset_px``/``blur_px`` are absolute canvas pixels, not scaled by the card's own
         size, so a card lifted a fraction of a mm stays a pixel or so wide regardless of how
         big that card renders on the board. ``blur_px`` is capped to the offset magnitude so
@@ -299,8 +296,7 @@ def _make_blob_mask(
     and heavily smoothed relative to its own size (``sigma_factor``) so a level set of it is
     usually one or two large coherent blobs rather than many small speckled ones. ``grid``
     sizes the noise field relative to the *smaller* image dimension, so this behaves the same
-    way whether called at whole-canvas or single-card resolution. Shared by
-    ``make_hard_shadow`` and ``make_card_cover``.
+    way whether called at whole-canvas or single-card resolution.
     """
     scale = grid / max(min(h, w), 1)
     lh, lw = max(round(h * scale), 12), max(round(w * scale), 12)
@@ -332,11 +328,9 @@ def make_hard_shadow(
     """Whole-board hard shadow with an irregular (non-polygonal) edge, in place.
 
     Mimics an off-scene occluder (a hand, a nearby object) between the light and the
-    table: darkens everything underneath it indiscriminately -- cards included -- unlike
-    the ambient per-card shading or the per-card cast-shadow. ``edge_softness`` only blurs a
-    thin transition band -- a hard edge, unlike the broad falloff ``make_card_shading`` uses
-    -- so the irregularity comes entirely from ``_make_blob_mask``'s boundary shape, not from
-    a wide blur.
+    table: darkens everything underneath it indiscriminately, cards included.
+    ``edge_softness`` only blurs a thin transition band, so the irregularity comes
+    entirely from ``_make_blob_mask``'s boundary shape, not from a wide blur.
     """
     if rng.random() >= prob:
         return
@@ -387,11 +381,11 @@ def make_card_cover(
 
     Deliberately not aiming for photographic realism: the corner detector must not rely on
     a card's printed content being fully legible to find its corners, and real photos have
-    glare/dirt/fingers partially covering a card's face while its corners stay fully visible
-    -- a case the (now-realistic, subtle) card shading no longer reliably produces. Reuses
+    glare/dirt/fingers partially covering a card's face while its corners stay fully visible,
+    a case the subtle, realistic card shading doesn't reliably produce on its own. Reuses
     ``_make_blob_mask`` for a cheap, non-polygonal patch shape. Only ever touches RGB, scaled
     by the card's own alpha so the patch can't spill past the card's true cutout silhouette;
-    alpha itself, and therefore corner geometry/visibility labels, is completely untouched.
+    alpha itself, and therefore corner geometry/visibility labels, is untouched.
     """
     if rng.random() >= prob:
         return card_img
