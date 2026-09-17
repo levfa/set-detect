@@ -1,0 +1,88 @@
+<resources>
+    <!-- Common / Shared Strings -->
+    <string name="app_name">Set Detect</string>
+    <string name="back">Back</string>
+    <string name="about">About</string>
+    <string name="help">Help</string>
+    <string name="settings">Settings</string>
+    <string name="close">Close</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_show_tutorial_on_startup">Show tutorial on startup</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_system_default">System default</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_language_german">Deutsch</string>
+    <string name="settings_language_spanish">Español</string>
+    <string name="settings_language_french">Français</string>
+
+    <!-- Selection Screen -->
+    <string name="selection_tab_board">Board</string>
+    <string name="selection_tab_deck">Deck</string>
+    <string name="selection_scan_empty">Tap the camera to scan cards!</string>
+    <string name="selection_manual_selection">Manual selection</string>
+    <string name="selection_add_cards">Add cards to your manual selection</string>
+    <string name="selection_scan">Scan</string>
+    <string name="selection_reset_view">Reset view</string>
+    <string name="selection_duplicate_warning">Duplicate cards detected</string>
+    <string name="selection_duplicate_card">Duplicate card</string>
+    <string name="selection_clear">Clear</string>
+    <string name="selection_reveal_sets">Reveal sets</string>
+    <plurals name="selection_cards_selected">
+        <item quantity="one">%d Card</item>
+        <item quantity="other">%d Cards</item>
+    </plurals>
+    <plurals name="selection_sets_contained">
+        <item quantity="one">%d set</item>
+        <item quantity="other">%d sets</item>
+    </plurals>
+
+    <!-- Camera Scan Screen -->
+    <string name="camera_title">Scan cards</string>
+    <string name="camera_scan">Scan</string>
+    <string name="camera_hint">Keep the camera steady. Press %s when the cards are detected.</string>
+    <string name="camera_permission_required">Camera permission is required</string>
+    <string name="camera_grant_permission">Grant permission</string>
+    <string name="camera_loading">Loading…</string>
+    <string name="camera_ready">Ready</string>
+    <string name="camera_detector_init_failed">Failed to initialize scanner</string>
+    <string name="camera_start_failed">Failed to start camera</string>
+
+    <!-- Results Screen -->
+    <string name="results_no_sets_found">No sets found.</string>
+    <plurals name="results_sets_found">
+        <item quantity="one">%d set contained</item>
+        <item quantity="other">%d sets contained</item>
+    </plurals>
+
+    <!-- About Screen -->
+    <string name="about_title">About</string>
+    <string name="about_author">by F. Leven</string>
+    <string name="about_licenses">Licenses</string>
+    <string name="about_privacy_policy">Privacy policy</string>
+    <string name="about_disclaimer">Set Detect is an independent, unofficial companion app for the SET® card game. It is not affiliated with, endorsed by, or sponsored by SET Enterprises, Inc.</string>
+
+    <!-- Licenses Screen -->
+    <string name="licenses_title">Licenses</string>
+
+    <!-- Privacy Policy Screen -->
+    <string name="privacy_policy_title">Privacy policy</string>
+    <string name="privacy_policy_content">This app uses the camera solely for the purpose of card detection. All image processing is performed locally on your device. \n\nThe app does not collect, store, or transmit any personal data, images, or metadata to any external servers. Your privacy is fully respected.</string>
+
+    <!-- Tutorial -->
+    <string name="tut_title">Tutorial</string>
+    <string name="tut_intro">This app helps you find sets in the game of Set. Let\'s quickly walk through the features.</string>
+    <string name="tut_scan_cards">Tap the camera button to scan an arrangement of cards laid out on the table.</string>
+    <string name="tut_scan_appears">Your scan appears here.</string>
+    <string name="tut_sets_and_reveal">At the top you can see the number of cards and how many sets they contain. To see the actual sets, tap \'%s\'.</string>
+    <string name="tut_scan_edit">The scan can be edited by hand or omitted entirely. Tap any card to gray it out and ignore it.</string>
+    <string name="tut_manual_selection_intro">You can also build a manual selection to correct or complement your scan. Either tap \'+\' or switch to the \'%s\' tab.</string>
+    <string name="tut_manual_selection">Tap any card to add it to the board, or tap it again to remove it. Cards already on the board are highlighted.</string>
+    <string name="tut_tabs_are_views">The \'%1$s\' and \'%2$s\' tabs are just two different views of your card selection.</string>
+    <string name="tut_demo_playing">Demonstrating…</string>
+    <string name="tut_re_run_tutorial">You can always restart this tutorial by tapping the help icon in the top right corner.</string>
+    <string name="tut_next">Next</string>
+    <string name="tut_back">Back</string>
+    <string name="tut_skip">Skip tutorial</string>
+    <string name="tut_finish">Finish</string>
+</resources>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+AGP 9's optimized resource shrinking (on by default, and release has
+isShrinkResources = true) can't see that AboutLibraries reads this file
+dynamically at runtime (produceLibraries(R.raw.aboutlibraries)), so without
+this keep rule it strips the file and the Licenses screen ships empty.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/aboutlibraries" />

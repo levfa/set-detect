@@ -1,0 +1,88 @@
+<resources>
+    <!-- Common / Shared Strings -->
+    <string name="app_name">Set Detect</string>
+    <string name="back">Atrás</string>
+    <string name="about">Acerca de</string>
+    <string name="help">Ayuda</string>
+    <string name="settings">Ajustes</string>
+    <string name="close">Cerrar</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_show_tutorial_on_startup">Mostrar tutorial al iniciar</string>
+    <string name="settings_language">Idioma</string>
+    <string name="settings_language_system_default">Predeterminado del sistema</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_language_german">Deutsch</string>
+    <string name="settings_language_spanish">Español</string>
+    <string name="settings_language_french">Français</string>
+
+    <!-- Selection Screen -->
+    <string name="selection_tab_board">Tablero</string>
+    <string name="selection_tab_deck">Mazo</string>
+    <string name="selection_scan_empty">¡Toca la cámara para escanear cartas!</string>
+    <string name="selection_manual_selection">Selección manual</string>
+    <string name="selection_add_cards">Añadir cartas a tu selección manual</string>
+    <string name="selection_scan">Escanear</string>
+    <string name="selection_reset_view">Restablecer vista</string>
+    <string name="selection_duplicate_warning">Cartas duplicadas detectadas</string>
+    <string name="selection_duplicate_card">Carta duplicada</string>
+    <string name="selection_clear">Restablecer</string>
+    <string name="selection_reveal_sets">Mostrar sets</string>
+    <plurals name="selection_cards_selected">
+        <item quantity="one">%d carta</item>
+        <item quantity="other">%d cartas</item>
+    </plurals>
+    <plurals name="selection_sets_contained">
+        <item quantity="one">%d set</item>
+        <item quantity="other">%d sets</item>
+    </plurals>
+
+    <!-- Camera Scan Screen -->
+    <string name="camera_title">Escanear cartas</string>
+    <string name="camera_scan">Escanear</string>
+    <string name="camera_hint">Mantén la cámara firme. Pulsa %s cuando se detecten las cartas.</string>
+    <string name="camera_permission_required">Se requiere permiso de la cámara</string>
+    <string name="camera_grant_permission">Conceder permiso</string>
+    <string name="camera_loading">Cargando…</string>
+    <string name="camera_ready">Listo</string>
+    <string name="camera_detector_init_failed">No se pudo inicializar el escáner</string>
+    <string name="camera_start_failed">No se pudo iniciar la cámara</string>
+
+    <!-- Results Screen -->
+    <string name="results_no_sets_found">No se encontraron sets.</string>
+    <plurals name="results_sets_found">
+        <item quantity="one">%d set encontrado</item>
+        <item quantity="other">%d sets encontrados</item>
+    </plurals>
+
+    <!-- About Screen -->
+    <string name="about_title">Acerca de</string>
+    <string name="about_author">por F. Leven</string>
+    <string name="about_licenses">Licencias</string>
+    <string name="about_privacy_policy">Política de privacidad</string>
+    <string name="about_disclaimer">Set Detect es una aplicación complementaria independiente y no oficial para el juego de cartas SET®. No está afiliada, respaldada ni patrocinada por SET Enterprises, Inc.</string>
+
+    <!-- Licenses Screen -->
+    <string name="licenses_title">Licencias</string>
+
+    <!-- Privacy Policy Screen -->
+    <string name="privacy_policy_title">Política de privacidad</string>
+    <string name="privacy_policy_content">Esta app usa la cámara únicamente para la detección de cartas. Todo el procesamiento de imágenes se realiza localmente en tu dispositivo. \n\nLa app no recopila, almacena ni transmite datos personales, imágenes ni metadatos a servidores externos. Tu privacidad se respeta por completo.</string>
+
+    <!-- Tutorial -->
+    <string name="tut_title">Tutorial</string>
+    <string name="tut_intro">Esta app te ayuda a encontrar sets en el juego de cartas Set. Vamos a repasar rápidamente las funciones.</string>
+    <string name="tut_scan_cards">Toca el botón de la cámara para escanear cartas sobre la mesa.</string>
+    <string name="tut_scan_appears">Tu escaneo aparece aquí.</string>
+    <string name="tut_sets_and_reveal">En la barra superior puedes ver el número de cartas y cuántos sets contienen. Para ver los sets, toca «%s».</string>
+    <string name="tut_scan_edit">El escaneo se puede editar a mano u omitir por completo. Toca cualquier carta para atenuarla e ignorarla.</string>
+    <string name="tut_manual_selection_intro">También puedes crear una selección manual para corregir o complementar tu escaneo. Toca «+» o cambia a la pestaña «%s».</string>
+    <string name="tut_manual_selection">Toca cualquier carta para añadirla al tablero. O tócala de nuevo para quitarla. Las cartas que ya están en el tablero aparecen resaltadas.</string>
+    <string name="tut_tabs_are_views">Las pestañas «%1$s» y «%2$s» son solo dos vistas distintas de tu selección de cartas.</string>
+    <string name="tut_demo_playing">Demostración en curso…</string>
+    <string name="tut_re_run_tutorial">Puedes reiniciar este tutorial en cualquier momento tocando el icono de ayuda en la esquina superior derecha.</string>
+    <string name="tut_next">Siguiente</string>
+    <string name="tut_back">Atrás</string>
+    <string name="tut_skip">Omitir tutorial</string>
+    <string name="tut_finish">Finalizar</string>
+</resources>

@@ -1,0 +1,142 @@
+name: C++ test
+
+on:
+  push:
+    paths:
+      - "cpp/**"
+      - ".github/workflows/cpp-test.yml"
+  pull_request:
+    paths:
+      - "cpp/**"
+      - ".github/workflows/cpp-test.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build build-essential git pkg-config curl
+
+      - name: Install a recent CMake
+        run: |
+          pip install --user "cmake>=3.25"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Cache vcpkg binary archives
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/vcpkg/archives
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('cpp/vcpkg.json', 'cpp/vcpkg-configuration.json') }}
+
+      - name: Bootstrap vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg "$RUNNER_TEMP/vcpkg"
+          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh"
+          echo "VCPKG_ROOT=$RUNNER_TEMP/vcpkg" >> "$GITHUB_ENV"
+
+      - name: Fetch ONNX Runtime (headers + lib only, never loaded at runtime in CI)
+        run: |
+          curl -Ls -o /tmp/onnxruntime.tgz \
+            https://github.com/microsoft/onnxruntime/releases/download/v1.20.1/onnxruntime-linux-x64-gpu-1.20.1.tgz
+          mkdir -p "$RUNNER_TEMP/onnxruntime"
+          tar -xzf /tmp/onnxruntime.tgz -C "$RUNNER_TEMP/onnxruntime" --strip-components=1
+          echo "ONNXRUNTIME_ROOT=$RUNNER_TEMP/onnxruntime" >> "$GITHUB_ENV"
+
+      - name: Fetch cuDNN shared libs (configure-time existence check only, never dlopen'd in CI)
+        run: |
+          pip download nvidia-cudnn-cu12 --no-deps -d /tmp/cudnn-wheel
+          python3 -m zipfile -e /tmp/cudnn-wheel/nvidia_cudnn_cu12-*.whl /tmp/cudnn-extracted
+          mkdir -p "$RUNNER_TEMP/cudnn/lib"
+          cp /tmp/cudnn-extracted/nvidia/cudnn/lib/libcudnn.so* "$RUNNER_TEMP/cudnn/lib/"
+          echo "CUDNN_ROOT=$RUNNER_TEMP/cudnn" >> "$GITHUB_ENV"
+
+      - name: Install OpenCV via micromamba (conda-forge, matches local dev's OpenCV 5.x)
+        run: |
+          curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj -C /tmp bin/micromamba
+          /tmp/bin/micromamba create -y -p "$RUNNER_TEMP/opencv-env" -c conda-forge "opencv=5.*"
+          echo "OpenCV_ROOT=$RUNNER_TEMP/opencv-env" >> "$GITHUB_ENV"
+          # conda-forge's OpenCV is linked against a newer libstdc++ ABI than the runner's
+          # system GCC provides (missing e.g. CXXABI_1.3.15's __cxa_call_terminate); conda-forge
+          # ships its own compatible libstdc++.so.6 alongside OpenCV, so prefer it at link time
+          # instead of pulling in a whole matching conda-forge compiler toolchain.
+          echo "LIBRARY_PATH=$RUNNER_TEMP/opencv-env/lib${LIBRARY_PATH:+:$LIBRARY_PATH}" >> "$GITHUB_ENV"
+
+      - name: Configure
+        run: cmake -S cpp -B cpp/build -G Ninja -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+
+      - name: Build
+        run: cmake --build cpp/build
+
+      - name: Test
+        run: ctest --test-dir cpp/build --output-on-failure
+
+  test-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build build-essential git pkg-config curl
+
+      - name: Install a recent CMake
+        run: |
+          pip install --user "cmake>=3.25"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Cache vcpkg binary archives
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/vcpkg/archives
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('cpp/vcpkg.json', 'cpp/vcpkg-configuration.json') }}
+
+      - name: Bootstrap vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg "$RUNNER_TEMP/vcpkg"
+          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh"
+          echo "VCPKG_ROOT=$RUNNER_TEMP/vcpkg" >> "$GITHUB_ENV"
+
+      - name: Fetch ONNX Runtime (headers + lib; loaded at runtime by the real-model tests, CPU only)
+        run: |
+          curl -Ls -o /tmp/onnxruntime.tgz \
+            https://github.com/microsoft/onnxruntime/releases/download/v1.20.1/onnxruntime-linux-x64-gpu-1.20.1.tgz
+          mkdir -p "$RUNNER_TEMP/onnxruntime"
+          tar -xzf /tmp/onnxruntime.tgz -C "$RUNNER_TEMP/onnxruntime" --strip-components=1
+          echo "ONNXRUNTIME_ROOT=$RUNNER_TEMP/onnxruntime" >> "$GITHUB_ENV"
+
+      - name: Fetch cuDNN shared libs (configure-time existence check only, real-model tests run CPU-only)
+        run: |
+          pip download nvidia-cudnn-cu12 --no-deps -d /tmp/cudnn-wheel
+          python3 -m zipfile -e /tmp/cudnn-wheel/nvidia_cudnn_cu12-*.whl /tmp/cudnn-extracted
+          mkdir -p "$RUNNER_TEMP/cudnn/lib"
+          cp /tmp/cudnn-extracted/nvidia/cudnn/lib/libcudnn.so* "$RUNNER_TEMP/cudnn/lib/"
+          echo "CUDNN_ROOT=$RUNNER_TEMP/cudnn" >> "$GITHUB_ENV"
+
+      - name: Install OpenCV via micromamba (conda-forge, matches local dev's OpenCV 5.x)
+        run: |
+          curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj -C /tmp bin/micromamba
+          /tmp/bin/micromamba create -y -p "$RUNNER_TEMP/opencv-env" -c conda-forge "opencv=5.*"
+          echo "OpenCV_ROOT=$RUNNER_TEMP/opencv-env" >> "$GITHUB_ENV"
+          echo "LIBRARY_PATH=$RUNNER_TEMP/opencv-env/lib${LIBRARY_PATH:+:$LIBRARY_PATH}" >> "$GITHUB_ENV"
+
+      - name: Cache downloaded models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/setdetect/models
+          key: setdetect-models-${{ hashFiles('cpp/scripts/download_models.sh') }}
+
+      - name: Configure
+        run: |
+          cmake -S cpp -B cpp/build -G Ninja -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DSETDETECT_BUILD_INTEGRATION_TESTS=ON
+
+      - name: Build
+        run: cmake --build cpp/build --target setdetect_integration_tests
+
+      - name: Run integration tests (real ONNX models)
+        run: ctest --test-dir cpp/build -R "RealModel|DownloadRealModels" --output-on-failure

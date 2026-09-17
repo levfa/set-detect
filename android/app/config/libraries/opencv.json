@@ -1,0 +1,10 @@
+{
+  "uniqueId": "org.opencv:opencv-vendored",
+  "name": "OpenCV",
+  "description": "Vendored and built from source (scripts/build_opencv_min.sh), not a Gradle dependency, so it isn't auto-detected.",
+  "website": "https://opencv.org",
+  "developers": [
+    { "name": "OpenCV team", "organisationUrl": "https://opencv.org" }
+  ],
+  "licenses": ["Apache-2.0"]
+}

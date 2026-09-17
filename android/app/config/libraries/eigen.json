@@ -1,0 +1,10 @@
+{
+  "uniqueId": "org.eigen:eigen-vendored",
+  "name": "Eigen",
+  "description": "C++ template library for linear algebra, fetched via CMake FetchContent (src/main/cpp/CMakeLists.txt), not a Gradle dependency, so it isn't auto-detected.",
+  "website": "https://eigen.tuxfamily.org",
+  "developers": [
+    { "name": "Eigen team", "organisationUrl": "https://eigen.tuxfamily.org" }
+  ],
+  "licenses": ["MPL-2.0"]
+}

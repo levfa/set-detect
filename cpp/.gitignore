@@ -1,0 +1,19 @@
+# build
+build/
+build-*/
+
+# vcpkg
+vcpkg_installed/
+vcpkg_buildtrees/
+vcpkg_packages/
+vcpkg_downloads/
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+*.cmake
+
+# Ninja
+*.ninja
+*.ninja_deps
+*.ninja_log

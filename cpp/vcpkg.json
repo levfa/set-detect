@@ -1,0 +1,9 @@
+{
+  "name": "setdetect",
+  "version": "1.0",
+  "dependencies": [
+    "cli11",
+    "eigen3",
+    "gtest"
+  ]
+}

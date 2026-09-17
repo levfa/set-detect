@@ -1,0 +1,30 @@
+# misc-include-cleaner is disabled: cv::Mat/Eigen::.../Ort... legitimately come
+# from the umbrella headers this codebase includes (opencv2/core.hpp,
+# onnxruntime_cxx_api.h, etc.); the check wants a "more specific" direct
+# include instead, which fights normal usage of these libraries rather than
+# catching a real problem.
+#
+# misc-non-private-member-variables-in-classes is disabled: it flags public
+# fields in pimpl Impl structs and small file-local data-holder structs that
+# are already private implementation details (never exposed outside their own
+# .cpp) -- this project favors plain structs over getter/setter ceremony for
+# exactly this case.
+Checks: >
+  -*,
+  bugprone-*,
+  performance-*,
+  readability-*,
+  modernize-*,
+  portability-*,
+  clang-analyzer-*,
+  misc-*,
+  concurrency-*,
+  -readability-magic-numbers,
+  -readability-identifier-length,
+  -bugprone-easily-swappable-parameters,
+  -misc-include-cleaner,
+  -misc-non-private-member-variables-in-classes
+
+WarningsAsErrors: ''
+HeaderFilterRegex: 'setdetect'
+FormatStyle: file

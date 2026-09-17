@@ -1,0 +1,105 @@
+name: Android release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system build dependencies (ninja + cmake for the minimal OpenCV build; git preinstalled)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build cmake
+
+      # Bootstraps ./gradlew; the actual build/daemon JDK (25) is auto-provisioned by
+      # Gradle itself via the foojay-resolver-convention plugin (settings.gradle.kts),
+      # per gradle/gradle-daemon-jvm.properties.
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        # Pinned to a patch tag rather than the floating v4: that ref's history trips
+        # act's git resolver ("unsupported object type"), harmless on real GitHub Actions
+        # but avoided here since it's just as valid a pin either way.
+        uses: gradle/actions/setup-gradle@v4.4.4
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          # Accepted explicitly below instead: more robust than trusting the action's
+          # own internal `sdkmanager --licenses` call to always get a usable stdin.
+          accept-android-sdk-licenses: false
+          # Default packages ("tools platform-tools") include the legacy "tools" package,
+          # which Google discontinued -- sdkmanager can no longer resolve it.
+          packages: platform-tools
+
+      - name: Accept SDK licenses, install NDK + the CMake version pinned in build.gradle.kts
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1
+          sdkmanager --install "ndk;28.2.13676358" "cmake;3.22.1"
+
+      # The minimal OpenCV build (scripts/build_opencv_min.sh) clones and cross-compiles
+      # OpenCV from source -- slow, and its own task already skips rebuilding once this
+      # output dir is populated (stamp-file checked), so caching it across runs matters.
+      - name: Cache minimal OpenCV build
+        uses: actions/cache@v4
+        with:
+          path: android/app/build/native-sdk-opencv
+          key: android-opencv-min-${{ hashFiles('android/scripts/build_opencv_min.sh') }}
+
+      # versionCode must strictly increase release over release for existing installs to
+      # upgrade in place (Android's own package-installer requirement) -- deriving both
+      # straight from the tag means there's nothing to remember/bump by hand beforehand.
+      - name: Derive versionName/versionCode from the tag
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if [[ ! "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "::error::Tag '$GITHUB_REF_NAME' is not vMAJOR.MINOR.PATCH" >&2
+            exit 1
+          fi
+          major="${BASH_REMATCH[1]}"
+          minor="${BASH_REMATCH[2]}"
+          patch="${BASH_REMATCH[3]}"
+          echo "SETDETECT_VERSION_NAME=$version" >> "$GITHUB_ENV"
+          echo "SETDETECT_VERSION_CODE=$((major * 10000 + minor * 100 + patch))" >> "$GITHUB_ENV"
+
+      - name: Decode signing keystore
+        env:
+          ANDROID_GITHUB_KEYSTORE_BASE64: ${{ secrets.ANDROID_GITHUB_KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/signing"
+          echo "$ANDROID_GITHUB_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/signing/release.keystore"
+          echo "SETDETECT_RELEASE_KEYSTORE=$RUNNER_TEMP/signing/release.keystore" >> "$GITHUB_ENV"
+
+      # Gradle-facing env var names stay path-agnostic ("RELEASE", not "GITHUB") -- a
+      # future Play Store/F-Droid workflow can reuse build.gradle.kts unchanged by
+      # mapping its own differently-named secrets into these same env vars.
+      - name: Build signed release APK
+        env:
+          SETDETECT_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_GITHUB_KEYSTORE_PASSWORD }}
+          SETDETECT_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_GITHUB_KEY_ALIAS }}
+        run: ./gradlew assembleRelease
+
+      - name: Remove decoded keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/signing/release.keystore"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v3.0.3
+        with:
+          files: android/app/build/outputs/apk/release/app-release.apk
+          generate_release_notes: true

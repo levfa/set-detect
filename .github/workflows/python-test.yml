@@ -1,0 +1,66 @@
+name: Python test
+
+on:
+  push:
+    paths:
+      - "py/**"
+      - ".github/workflows/python-test.yml"
+  pull_request:
+    paths:
+      - "py/**"
+      - ".github/workflows/python-test.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: py
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libgl1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.12.1"
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Run tests
+        run: uv run pytest --cov=setdetect --cov-report=term-missing
+
+  test-integration:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: py
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libgl1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.12.1"
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Cache downloaded models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/setdetect/models
+          key: setdetect-models-${{ hashFiles('py/src/setdetect/model/models_repo.py') }}
+
+      - name: Run integration tests (real ONNX models)
+        run: uv run pytest -m integration -v

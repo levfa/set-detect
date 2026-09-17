@@ -1,0 +1,88 @@
+<resources>
+    <!-- Common / Shared Strings -->
+    <string name="app_name">Set Detect</string>
+    <string name="back">Zurück</string>
+    <string name="about">Über</string>
+    <string name="help">Hilfe</string>
+    <string name="settings">Einstellungen</string>
+    <string name="close">Schließen</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_show_tutorial_on_startup">Tutorial beim Start anzeigen</string>
+    <string name="settings_language">Sprache</string>
+    <string name="settings_language_system_default">Systemstandard</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_language_german">Deutsch</string>
+    <string name="settings_language_spanish">Español</string>
+    <string name="settings_language_french">Français</string>
+
+    <!-- Selection Screen -->
+    <string name="selection_tab_board">Spielfeld</string>
+    <string name="selection_tab_deck">Deck</string>
+    <string name="selection_scan_empty">Tippe auf die Kamera, um Karten zu scannen!</string>
+    <string name="selection_manual_selection">Manuelle Auswahl</string>
+    <string name="selection_add_cards">Karten zur manuellen Auswahl hinzufügen</string>
+    <string name="selection_scan">Scan</string>
+    <string name="selection_reset_view">Ansicht zurücksetzen</string>
+    <string name="selection_duplicate_warning">Doppelte Karten erkannt</string>
+    <string name="selection_duplicate_card">Doppelte Karte</string>
+    <string name="selection_clear">Zurücksetzen</string>
+    <string name="selection_reveal_sets">Sets anzeigen</string>
+    <plurals name="selection_cards_selected">
+        <item quantity="one">%d Karte</item>
+        <item quantity="other">%d Karten</item>
+    </plurals>
+    <plurals name="selection_sets_contained">
+        <item quantity="one">%d Set</item>
+        <item quantity="other">%d Sets</item>
+    </plurals>
+
+    <!-- Camera Scan Screen -->
+    <string name="camera_title">Karten scannen</string>
+    <string name="camera_scan">Scannen</string>
+    <string name="camera_hint">Halte die Kamera ruhig. Drücke %s, sobald die Karten erkannt wurden.</string>
+    <string name="camera_permission_required">Kamerazugriff ist erforderlich</string>
+    <string name="camera_grant_permission">Zugriff erlauben</string>
+    <string name="camera_loading">Wird geladen…</string>
+    <string name="camera_ready">Bereit</string>
+    <string name="camera_detector_init_failed">Initialisierung des Scanners fehlgeschlagen</string>
+    <string name="camera_start_failed">Kamera konnte nicht gestartet werden</string>
+
+    <!-- Results Screen -->
+    <string name="results_no_sets_found">Keine Sets gefunden.</string>
+    <plurals name="results_sets_found">
+        <item quantity="one">%d Set enthalten</item>
+        <item quantity="other">%d Sets enthalten</item>
+    </plurals>
+
+    <!-- About Screen -->
+    <string name="about_title">Über</string>
+    <string name="about_author">von F. Leven</string>
+    <string name="about_licenses">Lizenzen</string>
+    <string name="about_privacy_policy">Datenschutzerklärung</string>
+    <string name="about_disclaimer">Set Detect ist eine unabhängige, inoffizielle Begleit-App für das Kartenspiel SET®. Es besteht keine Verbindung zu SET Enterprises, Inc., und die App wird nicht von diesem Unternehmen unterstützt oder gesponsert.</string>
+
+    <!-- Licenses Screen -->
+    <string name="licenses_title">Lizenzen</string>
+
+    <!-- Privacy Policy Screen -->
+    <string name="privacy_policy_title">Datenschutzerklärung</string>
+    <string name="privacy_policy_content">Diese App verwendet die Kamera ausschließlich zur Kartenerkennung. Die gesamte Bildverarbeitung erfolgt lokal auf deinem Gerät. \n\nDie App sammelt, speichert oder überträgt keine personenbezogenen Daten, Bilder oder Metadaten an externe Server. Deine Privatsphäre wird vollständig respektiert.</string>
+
+    <!-- Tutorial -->
+    <string name="tut_title">Tutorial</string>
+    <string name="tut_intro">Diese App hilft dir, Sets im Kartenspiel Set zu finden. Lass uns kurz die Funktionen durchgehen.</string>
+    <string name="tut_scan_cards">Tippe auf die Kamera-Schaltfläche, um Karten auf dem Tisch zu scannen.</string>
+    <string name="tut_scan_appears">Dein Scan erscheint hier.</string>
+    <string name="tut_sets_and_reveal">In der Kopfzeile siehst du die Anzahl der Karten und wie viele Sets sie enthalten. Um die Sets zu sehen, tippe auf „%s“.</string>
+    <string name="tut_scan_edit">Der Scan kann von Hand bearbeitet oder ganz weggelassen werden. Tippe auf eine Karte, um sie auszugrauen und zu ignorieren.</string>
+    <string name="tut_manual_selection_intro">Du kannst auch eine manuelle Auswahl erstellen, um deinen Scan zu korrigieren oder zu ergänzen. Tippe entweder auf „+“ oder wechsle zum Tab „%s“.</string>
+    <string name="tut_manual_selection">Tippe auf eine Karte, um sie zum Spielfeld hinzuzufügen. Oder tippe erneut, um sie zu entfernen. Karten, die bereits auf dem Spielfeld sind, sind hervorgehoben.</string>
+    <string name="tut_tabs_are_views">Die Tabs „%1$s“ und „%2$s“ sind nur zwei verschiedene Ansichten deiner Kartenauswahl.</string>
+    <string name="tut_demo_playing">Demonstration läuft …</string>
+    <string name="tut_re_run_tutorial">Du kannst dieses Tutorial jederzeit erneut starten, indem du auf das Hilfesymbol oben rechts tippst.</string>
+    <string name="tut_next">Weiter</string>
+    <string name="tut_back">Zurück</string>
+    <string name="tut_skip">Tutorial überspringen</string>
+    <string name="tut_finish">Fertig</string>
+</resources>

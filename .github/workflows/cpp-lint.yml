@@ -1,0 +1,93 @@
+name: C++ lint
+
+on:
+  push:
+    paths:
+      - "cpp/**"
+      - ".github/workflows/cpp-lint.yml"
+  pull_request:
+    paths:
+      - "cpp/**"
+      - ".github/workflows/cpp-lint.yml"
+
+jobs:
+  clang-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: |
+          pip install --user "clang-format==19.1.0"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Check formatting
+        run: |
+          find cpp -path cpp/build -prune -o \( -name "*.cpp" -o -name "*.hpp" \) -print0 \
+            | xargs -0 clang-format --dry-run --Werror
+
+  clang-tidy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build build-essential git pkg-config curl
+
+      - name: Install a recent CMake
+        run: |
+          pip install --user "cmake>=3.25"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Cache vcpkg binary archives
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/vcpkg/archives
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('cpp/vcpkg.json', 'cpp/vcpkg-configuration.json') }}
+
+      - name: Bootstrap vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg "$RUNNER_TEMP/vcpkg"
+          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh"
+          echo "VCPKG_ROOT=$RUNNER_TEMP/vcpkg" >> "$GITHUB_ENV"
+
+      - name: Fetch ONNX Runtime (headers only needed for clang-tidy to parse detector.hpp)
+        run: |
+          curl -Ls -o /tmp/onnxruntime.tgz \
+            https://github.com/microsoft/onnxruntime/releases/download/v1.20.1/onnxruntime-linux-x64-gpu-1.20.1.tgz
+          mkdir -p "$RUNNER_TEMP/onnxruntime"
+          tar -xzf /tmp/onnxruntime.tgz -C "$RUNNER_TEMP/onnxruntime" --strip-components=1
+          echo "ONNXRUNTIME_ROOT=$RUNNER_TEMP/onnxruntime" >> "$GITHUB_ENV"
+
+      - name: Fetch cuDNN shared libs (configure-time existence check only)
+        run: |
+          pip download nvidia-cudnn-cu12 --no-deps -d /tmp/cudnn-wheel
+          python3 -m zipfile -e /tmp/cudnn-wheel/nvidia_cudnn_cu12-*.whl /tmp/cudnn-extracted
+          mkdir -p "$RUNNER_TEMP/cudnn/lib"
+          cp /tmp/cudnn-extracted/nvidia/cudnn/lib/libcudnn.so* "$RUNNER_TEMP/cudnn/lib/"
+          echo "CUDNN_ROOT=$RUNNER_TEMP/cudnn" >> "$GITHUB_ENV"
+
+      - name: Install OpenCV via micromamba (conda-forge, matches local dev's OpenCV 5.x)
+        run: |
+          curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj -C /tmp bin/micromamba
+          /tmp/bin/micromamba create -y -p "$RUNNER_TEMP/opencv-env" -c conda-forge "opencv=5.*"
+          echo "OpenCV_ROOT=$RUNNER_TEMP/opencv-env" >> "$GITHUB_ENV"
+
+      - name: Configure (clang-tidy only needs compile_commands.json, not a full build)
+        run: cmake -S cpp -B cpp/build -G Ninja -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+
+      - name: Install clang-tidy
+        run: |
+          pip install --user "clang-tidy==18.1.8"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Run clang-tidy
+        run: |
+          # cpp/src/apps/*.hpp are app-private, header-only (no .cpp of their own), and
+          # depend on CLI11's include path -- clang-tidy can't resolve that analyzing them
+          # standalone with no matching compile-database entry, so they're excluded here
+          # (they're exercised for real via each app target's own compile command instead).
+          find cpp/src cpp/include -path cpp/src/apps -prune -o \( -name "*.cpp" -o -name "*.hpp" \) -print0 \
+            | xargs -0 clang-tidy -p cpp/build --quiet

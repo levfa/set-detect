@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -e
+
+if [ -z "$VCPKG_ROOT" ]; then
+    echo "VCPKG_ROOT is not set"
+    exit 1
+fi
+
+TOOLCHAIN="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+BUILD_TYPE="${1:-Release}"
+TARGET_TRIPLET="${2:-x64-linux}"
+
+cmake -G Ninja -B build \
+  -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" \
+  -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+  -DVCPKG_TARGET_TRIPLET="$TARGET_TRIPLET" \
+  -DVCPKG_MANIFEST_MODE=ON

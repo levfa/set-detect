@@ -1,0 +1,105 @@
+[project]
+name = "setdetect"
+version = "0.1.0"
+description = "Prototyping framework for 'setdetect'"
+readme = "README.md"
+authors = [
+    { name = "Fabian Leven", email = "fabian.leven@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "albumentations>=2.0.8",
+    "huggingface-hub>=1.26.0",
+    "jaxtyping>=0.3.11",
+    "matplotlib>=3.9",
+    "numpy>=2.5.2",
+    "opencv-python>=5.0.0.93",
+    "pandas>=2.0",
+    "pillow>=12.3.0",
+    "scipy>=1.14",
+    "onnx>=1.17",
+    "onnxruntime-gpu>=1.20",
+    "onnxscript>=0.2.0",
+    "ultralytics>=8.3.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.11.0",
+    "pre-commit>=4.0.0",
+    "pyright>=1.1.411",
+    "pytest>=8.0",
+    "pytest-cov>=6.0",
+]
+
+[project.scripts]
+set-card-cutouts = "setdetect.cli.card_cutouts_data:main"
+texturecan = "setdetect.cli.backgrounds_data:main"
+set-board-synth = "setdetect.cli.board_synth:main"
+set-card-synth = "setdetect.cli.card_synth:main"
+set-card-corners = "setdetect.cli.card_corners:main"
+set-card-class-data = "setdetect.cli.card_class_data:main"
+set-card-classification = "setdetect.cli.card_classification:main"
+set-card-detection = "setdetect.cli.card_detection:main"
+set-card-tracking = "setdetect.cli.card_tracking:main"
+set-sync-android-assets = "setdetect.cli.sync_android_assets:main"
+
+
+[tool.uv]
+exclude-dependencies = ["opencv-python-headless"]
+
+[tool.uv.build-backend]
+module-name = ["setdetect"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "W",    # pycodestyle warnings
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "T20",  # flake8-print
+    "FA",   # flake8-future-annotations
+]
+ignore = [
+    "UP007",  # use X | Y for union types — already done everywhere, noisy on existing code
+    "B905",   # zip() without strict= — not needed for known-length parallel iteration
+    "B023",   # function definition does not bind loop variable — intentional closures
+    "SIM105", # contextlib.suppress — try/except/pass is clearer for queue ops
+    "SIM108", # ternary operator — multi-line if/else is more readable
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["setdetect"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/setdetect/cli/*" = ["T20"]
+"src/setdetect/util/frame_grabber.py" = ["T20"]
+"src/setdetect/model/card_classification.py" = ["T20"]
+"src/setdetect/model/card_corners.py" = ["T20"]
+
+[tool.pyright]
+include = ["src"]
+pythonVersion = "3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -m 'not integration'"
+markers = [
+    "integration: downloads real ONNX models and runs them; opt-in via `pytest -m integration`",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[build-system]
+requires = ["uv_build>=0.12.1,<0.13.0"]
+build-backend = "uv_build"

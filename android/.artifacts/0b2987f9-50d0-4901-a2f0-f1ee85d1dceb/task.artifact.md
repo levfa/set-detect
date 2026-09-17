@@ -1,0 +1,6 @@
+- [ ] Finalize Theme and Colors
+- [ ] Refine `CardView` styling
+- [ ] Implement Adaptive Navigation (List-Detail) for Results
+- [ ] Refactor `ResultsDashboardScreen` for adaptive layout
+- [ ] Verify Edge-to-Edge support
+- [ ] Final Build and Verification
