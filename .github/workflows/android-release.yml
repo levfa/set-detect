@@ -77,13 +77,24 @@ jobs:
           echo "SETDETECT_VERSION_NAME=$version" >> "$GITHUB_ENV"
           echo "SETDETECT_VERSION_CODE=$((major * 10000 + minor * 100 + patch))" >> "$GITHUB_ENV"
 
-      - name: Decode signing keystore
+      # Validates the decoded keystore immediately (keytool -list) rather than letting a
+      # corrupt/truncated secret surface ~9 minutes later as a cryptic error out of AGP's
+      # packageRelease/R8 step, after the full OpenCV-from-source build has already run.
+      - name: Decode + validate signing keystore
         env:
           ANDROID_GITHUB_KEYSTORE_BASE64: ${{ secrets.ANDROID_GITHUB_KEYSTORE_BASE64 }}
+          ANDROID_GITHUB_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_GITHUB_KEYSTORE_PASSWORD }}
+          ANDROID_GITHUB_KEY_ALIAS: ${{ secrets.ANDROID_GITHUB_KEY_ALIAS }}
         run: |
           mkdir -p "$RUNNER_TEMP/signing"
           echo "$ANDROID_GITHUB_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/signing/release.keystore"
           echo "SETDETECT_RELEASE_KEYSTORE=$RUNNER_TEMP/signing/release.keystore" >> "$GITHUB_ENV"
+          echo "decoded keystore: $(wc -c < "$RUNNER_TEMP/signing/release.keystore") bytes, sha256 $(sha256sum "$RUNNER_TEMP/signing/release.keystore" | cut -d' ' -f1)"
+          keytool -list -storetype PKCS12 \
+            -keystore "$RUNNER_TEMP/signing/release.keystore" \
+            -storepass "$ANDROID_GITHUB_KEYSTORE_PASSWORD" \
+            -alias "$ANDROID_GITHUB_KEY_ALIAS" > /dev/null
+          echo "keystore OK, alias '$ANDROID_GITHUB_KEY_ALIAS' found"
 
       # Gradle-facing env var names stay path-agnostic ("RELEASE", not "GITHUB") -- a
       # future Play Store/F-Droid workflow can reuse build.gradle.kts unchanged by
