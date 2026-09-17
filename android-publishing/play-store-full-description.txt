@@ -1,0 +1,10 @@
+Point your camera at a table of SET® cards and Set Detect instantly finds every valid set for you.
+
+Features:
+- Scan a board of cards with your camera and get every valid set highlighted instantly
+- Build a hand manually to check whether it's a valid set
+- Fully on-device: camera frames are never saved or transmitted
+
+Set Detect works completely offline: no account, no internet connection required, no ads, no tracking, no data collection.
+
+Disclaimer: unofficial, fan-made project. Not affiliated with, endorsed by, or sponsored by SET Enterprises, Inc.
