@@ -104,8 +104,13 @@ jobs:
         if: always()
         run: rm -f "$RUNNER_TEMP/signing/release.keystore"
 
+      - name: Rename APK for the release asset
+        run: |
+          mv app/build/outputs/apk/release/app-release.apk \
+             "app/build/outputs/apk/release/set-detect-v${SETDETECT_VERSION_NAME}.apk"
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v3.0.3
         with:
-          files: android/app/build/outputs/apk/release/app-release.apk
+          files: android/app/build/outputs/apk/release/set-detect-v${{ env.SETDETECT_VERSION_NAME }}.apk
           generate_release_notes: true

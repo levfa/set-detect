@@ -1,6 +1,6 @@
 # Set Detect
 
-Point your camera at your cards and instantly see every valid SET®.
+Use your camera to see if a SET® is hiding among your cards. Reveal it on tap.
 
 <p>
   <img src="android-publishing/screen-capture.gif" alt="Screen capture" height="300">

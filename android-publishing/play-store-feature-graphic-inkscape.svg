@@ -3,8 +3,8 @@
 
 <svg
    width="1024"
-   height="512"
-   viewBox="0 0 270.93333 135.46667"
+   height="500"
+   viewBox="0 0 270.93333 132.29171"
    version="1.1"
    id="svg1"
    inkscape:version="1.4.4 (1:1.4.4+202605061436+dcaf3e7d9e)"
@@ -27,21 +27,21 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="px"
-     inkscape:zoom="0.50772211"
-     inkscape:cx="306.2699"
-     inkscape:cy="224.53227"
+     inkscape:zoom="0.71802749"
+     inkscape:cx="330.76728"
+     inkscape:cy="211.69106"
      inkscape:window-width="1920"
      inkscape:window-height="1011"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
-     inkscape:current-layer="layer2"
+     inkscape:current-layer="svg1"
      showguides="true"><sodipodi:guide
-       position="229.39623,112.52759"
+       position="230.47576,112.52761"
        orientation="0,-1"
        id="guide3"
        inkscape:locked="false" /><sodipodi:guide
-       position="-14.344277,19.257264"
+       position="285.54504,19.730095"
        orientation="0,-1"
        id="guide4"
        inkscape:locked="false" /></sodipodi:namedview><defs
@@ -130,13 +130,13 @@
      xml:space="preserve"
      style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:16.9333px;line-height:0.9;font-family:Inter;-inkscape-font-specification:Inter;text-align:center;writing-mode:lr-tb;direction:ltr;text-anchor:middle;fill:#e91e63;fill-opacity:1;stroke:#e91e63;stroke-width:0.769001"
      x="63.755116"
-     y="115.66623"
+     y="112.09234"
      id="text1"><tspan
        sodipodi:role="line"
        id="tspan1"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:16.9333px;font-family:Inter;-inkscape-font-specification:Inter;stroke-width:0.769;fill:#e91e63;fill-opacity:1"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:16.9333px;font-family:Inter;-inkscape-font-specification:Inter;fill:#e91e63;fill-opacity:1;stroke-width:0.769"
        x="63.755116"
-       y="115.66623">Set Detect</tspan></text><g
+       y="112.09234">Set Detect</tspan></text><g
      inkscape:label="icon"
      inkscape:groupmode="layer"
      id="layer1"><g
