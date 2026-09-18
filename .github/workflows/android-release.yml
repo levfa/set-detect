@@ -90,6 +90,14 @@ jobs:
             -alias "$ANDROID_RELEASE_KEY_ALIAS"
           echo "keystore OK, alias '$ANDROID_RELEASE_KEY_ALIAS' found"
 
+      - name: Download inference models
+        run: |
+          mkdir -p app/src/main/assets/models
+          curl -fsSL -o app/src/main/assets/models/card_corners.onnx \
+            https://raw.githubusercontent.com/levfa/set-detect-models/main/card-corners/onnx/card_corners.onnx
+          curl -fsSL -o app/src/main/assets/models/card_classifier_quant.onnx \
+            https://raw.githubusercontent.com/levfa/set-detect-models/main/card-classification/onnx/model_quantized.onnx
+
       - name: Build signed release APK
         env:
           SETDETECT_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
@@ -199,6 +207,14 @@ jobs:
             -storepass "$ANDROID_RELEASE_KEYSTORE_PASSWORD" \
             -alias "$ANDROID_RELEASE_KEY_ALIAS"
           echo "keystore OK, alias '$ANDROID_RELEASE_KEY_ALIAS' found"
+
+      - name: Download inference models
+        run: |
+          mkdir -p app/src/main/assets/models
+          curl -fsSL -o app/src/main/assets/models/card_corners.onnx \
+            https://raw.githubusercontent.com/levfa/set-detect-models/main/card-corners/onnx/card_corners.onnx
+          curl -fsSL -o app/src/main/assets/models/card_classifier_quant.onnx \
+            https://raw.githubusercontent.com/levfa/set-detect-models/main/card-classification/onnx/model_quantized.onnx
 
       - name: Build signed release AAB
         env:
