@@ -1,32 +1,123 @@
-import typing as tp
-
-import numpy as np
-
-from setdetect.data.card_cutouts import MaskedCard, MaskedCardDataset
-
-CardProvider = tp.Callable[[int, np.random.Generator], list[MaskedCard]]
-ScenarioFactory = tp.Callable[[MaskedCardDataset], CardProvider]
+from setdetect.set_game.game import Card, Color, Count, Fill, Shape
 
 
-def duplicate_card_provider(dataset: MaskedCardDataset) -> CardProvider:
-    """Card provider for a board with one card identity placed twice.
-
-    Draws ``num_cards - 1`` distinct cards as usual, then re-inserts a copy of one of them
-    at a random position, so callers see the normal ``card_provider`` signature and get back
-    exactly ``num_cards`` cards with exactly one repeated identity.
-    """
-
-    def _provider(num_cards: int, rng: np.random.Generator) -> list[MaskedCard]:
-        if num_cards < 2:
-            raise ValueError(f"duplicate-card scenario needs at least 2 cards, got {num_cards}")
-        cards = dataset.random_cards(num_cards - 1, rng)
-        dup = cards[int(rng.integers(len(cards)))]
-        cards.insert(int(rng.integers(len(cards) + 1)), dup)
-        return cards
-
-    return _provider
+def _board(*specs: str) -> tuple[Card, ...]:
+    cards = []
+    for spec in specs:
+        count, color, shape, fill = spec.split()
+        cards.append(Card(Count(count), Color(color), Shape(shape), Fill(fill)))
+    return tuple(cards)
 
 
-SCENARIOS: dict[str, ScenarioFactory] = {
-    "duplicate-card": duplicate_card_provider,
+SCENARIOS: dict[str, tuple[Card, ...]] = {
+    "no-set": _board(
+        "three green squiggle striped",
+        "three red diamond open",
+        "one red squiggle striped",
+        "three purple diamond open",
+        "one green squiggle open",
+        "two red diamond striped",
+        "three purple diamond solid",
+        "three purple squiggle open",
+        "two purple oval solid",
+    ),
+    "one-set": _board(
+        "two green oval solid",
+        "one purple diamond striped",
+        "two purple oval solid",
+        "one red squiggle open",
+        "one green diamond open",
+        "three green oval solid",
+        "one green oval open",
+        "two purple diamond striped",
+        "one red squiggle striped",
+    ),
+    "two-sets": _board(
+        "two purple diamond solid",
+        "one green oval open",
+        "three green squiggle striped",
+        "one red squiggle solid",
+        "three purple diamond open",
+        "one red squiggle striped",
+        "one purple squiggle solid",
+        "three green diamond open",
+        "three green oval solid",
+    ),
+    "three-sets": _board(
+        "three purple oval solid",
+        "two purple diamond striped",
+        "three red squiggle open",
+        "one green squiggle open",
+        "one green oval solid",
+        "three red squiggle solid",
+        "three red oval solid",
+        "three red squiggle striped",
+        "three purple diamond striped",
+    ),
+    "four-sets": _board(
+        "one red squiggle striped",
+        "three green oval open",
+        "two purple oval striped",
+        "three red diamond solid",
+        "two purple diamond open",
+        "one green oval striped",
+        "three purple squiggle striped",
+        "two red diamond striped",
+        "one purple diamond striped",
+    ),
+    "five-sets": _board(
+        "three purple squiggle open",
+        "one red oval solid",
+        "two green diamond striped",
+        "three purple oval solid",
+        "two green oval open",
+        "two green diamond solid",
+        "two green squiggle open",
+        "three purple diamond striped",
+        "two green diamond open",
+    ),
+    "six-sets": _board(
+        "one green diamond solid",
+        "one red squiggle striped",
+        "three purple diamond open",
+        "two purple squiggle striped",
+        "two red diamond striped",
+        "two green oval open",
+        "one purple oval striped",
+        "three green squiggle striped",
+        "three red oval solid",
+    ),
+    "duplicate-card": _board(
+        "one purple diamond open",
+        "two green oval striped",
+        "three red squiggle striped",
+        "two purple diamond solid",
+        "two red oval striped",
+        "two green diamond striped",
+        "three purple squiggle open",
+        "two red squiggle open",
+        "two red squiggle open",
+    ),
+    "twelve-sets": _board(
+        "three green diamond striped",
+        "one green diamond striped",
+        "one purple squiggle solid",
+        "two purple squiggle solid",
+        "three red oval open",
+        "two green diamond striped",
+        "two red oval open",
+        "three purple squiggle solid",
+        "one red oval open",
+    ),
+    "same-color-set": _board(
+        "one red diamond solid",
+        "one red squiggle striped",
+        "two red oval striped",
+        "one purple oval solid",
+        "one green diamond striped",
+        "one purple diamond open",
+        "two green diamond solid",
+        "one green oval open",
+        "three red squiggle open",
+    ),
 }

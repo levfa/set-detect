@@ -5,8 +5,9 @@ import typing as tp
 import cv2
 import numpy as np
 
-from setdetect.data.card_cutouts import MaskedCard, MaskedCardDataset
+from setdetect.data.card_cutouts import MaskedCard, MaskedCardDataset, mask_inset_corners
 from setdetect.data.texturecan import DEFAULT_MANIFEST_NAME, TextureDataset
+from setdetect.set_game.game import Card
 from setdetect.synth_data.board_synth import (
     CardQuad,
     make_image,
@@ -171,10 +172,58 @@ def _show_board(args: argparse.Namespace) -> None:
     _render_scene(args, card_dataset.random_cards, texture_dataset)
 
 
-def _show_scenario_board(args: argparse.Namespace) -> None:
-    card_dataset, texture_dataset = _load_datasets(args)
-    card_provider = SCENARIOS[args.scenario](card_dataset)
-    _render_scene(args, card_provider, texture_dataset)
+_A4_MM = (210.0, 297.0)
+_CARD_INCH = (2.5, 3.5)
+_GRID = (3, 3)
+_SHEET_BG = (72, 66, 60)
+
+
+def _layout_a4_grid(dpi: int) -> tuple[tuple[int, int], tuple[int, int], list[tuple[int, int]]]:
+    """Sheet size, card size and top-left card origins (all in px, row-major) for a centered grid."""
+    sheet_w, sheet_h = (round(mm / 25.4 * dpi) for mm in _A4_MM)
+    card_w, card_h = (round(inch * dpi) for inch in _CARD_INCH)
+    rows, cols = _GRID
+    gap_x = (sheet_w - cols * card_w) // (cols + 1)
+    gap_y = (sheet_h - rows * card_h) // (rows + 1)
+    if gap_x < 0 or gap_y < 0:
+        raise ValueError(f"{cols}x{rows} cards do not fit on an A4 sheet at {dpi} dpi")
+    origins = [(gap_x + c * (card_w + gap_x), gap_y + r * (card_h + gap_y)) for r in range(rows) for c in range(cols)]
+    return (sheet_w, sheet_h), (card_w, card_h), origins
+
+
+def _render_sheet(cards: tuple[Card, ...], dataset: MaskedCardDataset, dpi: int) -> np.ndarray:
+    (sheet_w, sheet_h), card_size, origins = _layout_a4_grid(dpi)
+    (x0, y0), (x1, y1) = mask_inset_corners()[0], mask_inset_corners()[2]
+    sheet = np.empty((sheet_h, sheet_w, 3), np.float32)
+    sheet[:] = _SHEET_BG
+    for card, (ox, oy) in zip(cards, origins, strict=True):
+        image = dataset.get(card).image[y0:y1, x0:x1]
+        bgra = cv2.resize(image, card_size, interpolation=cv2.INTER_AREA).astype(np.float32)
+        alpha = bgra[..., 3:] / 255.0
+        region = sheet[oy : oy + card_size[1], ox : ox + card_size[0]]
+        region[:] = alpha * bgra[..., :3] + (1.0 - alpha) * region
+    return np.clip(np.round(sheet), 0, 255).astype(np.uint8)
+
+
+def _generate(args: argparse.Namespace) -> None:
+    dataset = MaskedCardDataset(args.cards_root)
+    names = list(SCENARIOS)
+    selected = [args.scenario] if args.scenario else names
+    if args.out is not None:
+        args.out.mkdir(parents=True, exist_ok=True)
+    for name in selected:
+        sheet = _render_sheet(SCENARIOS[name], dataset, args.dpi)
+        if args.out is None:
+            cv2.imshow(name, sheet)
+            key = cv2.waitKey(-1)
+            cv2.destroyAllWindows()
+            if key == ord("q"):
+                break
+            continue
+        path = args.out / f"{names.index(name) + 1:02d}_{name}.png"
+        if not cv2.imwrite(str(path), sheet):
+            raise SystemExit(f"failed to write {path}")
+        print(f"saved {path}")
 
 
 def _show_specular(args: argparse.Namespace) -> None:
@@ -392,31 +441,14 @@ def main(argv: list[str] | None = None) -> None:
         "corner, filled when visible and hollow with a cross when occluded",
     )
 
-    scenario_p = subparsers.add_parser(
-        "show-scenario-board",
-        help="Show a crafted example board illustrating a specific scenario (e.g. a duplicate card)",
+    generate_p = subparsers.add_parser(
+        "generate",
+        help="Render the crafted scenario boards as true-scale A4 sheets (shown if --out is not given)",
     )
-    _add_common_args(scenario_p)
-    scenario_p.add_argument(
-        "--scenario",
-        choices=sorted(SCENARIOS),
-        required=True,
-        help="Which crafted scenario to render",
-    )
-    add_rot_arg(scenario_p)
-    add_persp_arg(scenario_p)
-    add_spec_args(scenario_p)
-    add_shading_args(scenario_p)
-    add_shadow_args(scenario_p)
-    add_hard_shadow_args(scenario_p)
-    add_card_cover_args(scenario_p)
-    add_blur_args(scenario_p)
-    scenario_p.add_argument(
-        "--show-labels",
-        action="store_true",
-        help="Draw the four card corner keypoints (TL/TR/BR/BL) color-coded by "
-        "corner, filled when visible and hollow with a cross when occluded",
-    )
+    generate_p.add_argument("--cards-root", type=pl.Path, required=True, help="Masked card-cutout dataset directory")
+    generate_p.add_argument("--out", type=pl.Path, default=None, help="Directory to write the sheets to")
+    generate_p.add_argument("--scenario", choices=list(SCENARIOS), default=None, help="Only this scenario")
+    generate_p.add_argument("--dpi", type=int, default=100, help="Sheet resolution (default: %(default)s)")
 
     spec_p = subparsers.add_parser(
         "show-specular",
@@ -450,8 +482,8 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     if args.command == "show-board":
         _show_board(args)
-    elif args.command == "show-scenario-board":
-        _show_scenario_board(args)
+    elif args.command == "generate":
+        _generate(args)
     elif args.command == "show-specular":
         _show_specular(args)
     elif args.command == "show-shading":

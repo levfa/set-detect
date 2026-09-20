@@ -7,6 +7,7 @@ CLI_HELP_CASES = [
     ("setdetect.cli.card_cutouts_data", ["show-raw", "--help"]),
     ("setdetect.cli.backgrounds_data", ["--help"]),
     ("setdetect.cli.board_synth", ["--help"]),
+    ("setdetect.cli.board_synth", ["generate", "--help"]),
     ("setdetect.cli.card_synth", ["--help"]),
     ("setdetect.cli.card_corners", ["--help"]),
     ("setdetect.cli.card_corners", ["list-versions", "--help"]),

@@ -684,6 +684,12 @@ class MaskedCardDataset:
             )
         return cards
 
+    def get(self, card: Card) -> MaskedCard:
+        try:
+            return self._by_identity[card.attributes]
+        except KeyError:
+            raise KeyError(f"no masked card for {card.label}") from None
+
     def random_cards(self, num_cards: int, rng: np.random.Generator) -> list[MaskedCard]:
         if num_cards < 0:
             raise ValueError(f"num_cards must be non-negative, got {num_cards}")
