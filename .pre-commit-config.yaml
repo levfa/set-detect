@@ -1,3 +1,5 @@
+# clang-format and clang-tidy are installed from pinned versions by pre-commit
+# itself, so no system clang packages are needed and CI runs the same hooks.
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -25,8 +27,9 @@ repos:
     hooks:
       - id: clang-tidy
         name: clang-tidy
-        entry: clang-tidy-18
-        language: system
+        entry: clang-tidy
+        language: python
+        additional_dependencies: ["clang-tidy==18.1.8"]
         types_or: [c++, c, cuda]
         args:
           - -p=cpp/build
