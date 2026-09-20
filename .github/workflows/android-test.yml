@@ -5,11 +5,13 @@ on:
     paths:
       - "android/**"
       - "cpp/**"
+      - "android-publishing/privacy-policy.md"
       - ".github/workflows/android-test.yml"
   pull_request:
     paths:
       - "android/**"
       - "cpp/**"
+      - "android-publishing/privacy-policy.md"
       - ".github/workflows/android-test.yml"
 
 jobs:

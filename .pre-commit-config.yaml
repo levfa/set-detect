@@ -25,8 +25,9 @@ repos:
     hooks:
       - id: clang-tidy
         name: clang-tidy
-        entry: clang-tidy-18
-        language: system
+        entry: clang-tidy
+        language: python
+        additional_dependencies: ["clang-tidy==18.1.8"]
         types_or: [c++, c, cuda]
         args:
           - -p=cpp/build

@@ -4,10 +4,14 @@ on:
   push:
     paths:
       - "cpp/**"
+      - "android/app/src/main/cpp/**"
+      - ".pre-commit-config.yaml"
       - ".github/workflows/cpp-lint.yml"
   pull_request:
     paths:
       - "cpp/**"
+      - "android/app/src/main/cpp/**"
+      - ".pre-commit-config.yaml"
       - ".github/workflows/cpp-lint.yml"
 
 jobs:
@@ -16,15 +20,19 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Install clang-format
-        run: |
-          pip install --user "clang-format==19.1.0"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.12.1"
+
+      - name: Cache pre-commit environments
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
 
       - name: Check formatting
-        run: |
-          find cpp -path cpp/build -prune -o \( -name "*.cpp" -o -name "*.hpp" \) -print0 \
-            | xargs -0 clang-format --dry-run --Werror
+        run: uvx pre-commit@4.2.0 run clang-format --all-files --show-diff-on-failure
 
   clang-tidy:
     runs-on: ubuntu-latest
@@ -78,16 +86,19 @@ jobs:
       - name: Configure (clang-tidy only needs compile_commands.json, not a full build)
         run: cmake -S cpp -B cpp/build -G Ninja -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
 
-      - name: Install clang-tidy
-        run: |
-          pip install --user "clang-tidy==18.1.8"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.12.1"
 
+      - name: Cache pre-commit environments
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      # cpp/src/apps/*.hpp are app-private headers with no .cpp of their own and rely
+      # on CLI11's include path, so the hook excludes them (each app target's own
+      # compile command exercises them instead).
       - name: Run clang-tidy
-        run: |
-          # cpp/src/apps/*.hpp are app-private headers with no .cpp of their own and rely
-          # on CLI11's include path; clang-tidy can't resolve that without a matching
-          # compile-database entry, so they're excluded here (each app target's own
-          # compile command exercises them instead).
-          find cpp/src cpp/include -path cpp/src/apps -prune -o \( -name "*.cpp" -o -name "*.hpp" \) -print0 \
-            | xargs -0 clang-tidy -p cpp/build --quiet
+        run: uvx pre-commit@4.2.0 run clang-tidy --all-files
