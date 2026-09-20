@@ -4,6 +4,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -25,17 +26,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.fabianleven.setdetect.domain.*
 
-// Deselected cards use a solid muted gray (not a translucent white; alpha
-// over a varying background makes contrast inconsistent, especially at small
-// sizes) *and* a faded symbol, two compounding signals so "deselected" reads
-// unambiguously next to a crisp, bordered, full-color selected card.
+// Deselected cards use a solid muted gray (translucent white would vary in
+// contrast with the background) and a faded symbol, so they read as
+// deselected next to a selected card.
 private val DeselectedContainerColor = Color(0xFFBDBDBD)
 private const val DeselectedSymbolAlpha = 0.45f
 
-// Width:height ratio a physical SET card is drawn at. Shared with
-// ArrangementView so laid-out card boxes always match this exact ratio,
-// regardless of how precisely upstream (native detection or sample data)
-// estimated it.
+// Width:height ratio a physical SET card is drawn at. Arranged card boxes use
+// it too, so they match regardless of the detected card height.
 const val CardAspectRatio = 5f / 7f
 
 @Composable
@@ -45,7 +43,8 @@ fun CardView(
     isSelected: Boolean = false,
     isActive: Boolean = true,
     showBorder: Boolean = true,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    interactionSource: MutableInteractionSource? = null
 ) {
     val baseColor = when (card.color) {
         CardColor.RED -> Color(0xFFE91E63)
@@ -55,9 +54,7 @@ fun CardView(
     val targetColor = if (isSelected) baseColor else baseColor.copy(alpha = DeselectedSymbolAlpha)
     val color by animateColorAsState(targetColor, label = "symbolColor")
 
-    // isActive is only ever false from the scan view's deselected cards: no
-    // symbol at all there keeps "this card is excluded" unambiguous instead
-    // of relying on a hard-to-see cross-out.
+    // Inactive cards (ignored scan cards) show no symbol, marking them as excluded.
     val showSymbol = isActive
 
     val containerColor by animateColorAsState(
@@ -68,12 +65,9 @@ fun CardView(
         if (isSelected) 4.dp else 0.dp,
         label = "elevation"
     )
-    // Animate the border's width and color together (rather than swapping a
-    // null border in abruptly) so it fades away instead of popping off.
-    // showBorder is false in the arrangement view, where the cards are
-    // already small and rotated: the container color/symbol contrast alone
-    // (white+full-color vs. gray+no-symbol) is enough there, and a border
-    // dodging each card's rotation adds visual noise instead of clarity.
+    // Border width and color animate together so it fades instead of popping.
+    // showBorder is false for the small, rotated cards in the scan arrangement,
+    // where container color and symbol contrast suffice.
     val borderColor by animateColorAsState(
         if (isSelected && showBorder) MaterialTheme.colorScheme.primary else Color.Transparent,
         label = "borderColor"
@@ -85,6 +79,7 @@ fun CardView(
 
     Card(
         onClick = onClick,
+        interactionSource = interactionSource,
         modifier = modifier
             .aspectRatio(CardAspectRatio),
         shape = RoundedCornerShape(12),

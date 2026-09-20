@@ -2,10 +2,9 @@ package com.fabianleven.setdetect.domain
 
 import com.fabianleven.setdetect.ui.components.CardAspectRatio
 
-// A hand-built example scan used only by the onboarding tutorial, so the
-// Board tab's steps have real content to point at without a camera capture.
-// Modeled after a typical real scan: a dozen-ish cards loosely arranged on a
-// table, not a perfect grid.
+// A hand-built example scan for the onboarding tutorial, giving its board steps
+// content to point at without a camera capture. Twelve cards loosely arranged,
+// not a perfect grid.
 private const val EXAMPLE_CARD_WIDTH = 0.19f
 
 private data class ExampleCardPlacement(val x: Float, val y: Float, val angleRad: Float)

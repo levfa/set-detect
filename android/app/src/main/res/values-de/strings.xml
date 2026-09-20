@@ -17,15 +17,22 @@
     <string name="settings_language_french">Français</string>
 
     <!-- Selection Screen -->
-    <string name="selection_tab_board">Spielfeld</string>
-    <string name="selection_tab_deck">Deck</string>
-    <string name="selection_scan_empty">Tippe auf die Kamera, um Karten zu scannen!</string>
-    <string name="selection_manual_selection">Manuelle Auswahl</string>
-    <string name="selection_add_cards">Karten zur manuellen Auswahl hinzufügen</string>
+    <string name="selection_scan_empty">Tippe auf die Kamera, um Karten zu scannen.</string>
+    <string name="selection_manual_empty">Tippe auf den Stift, um Karten manuell auszuwählen.</string>
+    <string name="selection_manual_selection">Manuell</string>
+    <string name="selection_remove_card">Karte entfernen</string>
+    <string name="selection_scan_cards">Karten scannen</string>
+    <string name="selection_edit_cards">Manuelle Auswahl bearbeiten</string>
+    <string name="manual_picker_title">Auswahl bearbeiten</string>
+    <string name="manual_picker_done">Fertig</string>
     <string name="selection_scan">Scan</string>
     <string name="selection_reset_view">Ansicht zurücksetzen</string>
-    <string name="selection_duplicate_warning">Doppelte Karten erkannt</string>
+    <string name="selection_duplicate_warning">Duplikate</string>
     <string name="selection_duplicate_card">Doppelte Karte</string>
+    <string name="picker_title">Karte ändern</string>
+    <string name="picker_cancel">Abbrechen</string>
+    <string name="picker_ignored">Ignoriert</string>
+    <string name="picker_scanned">Gescannt</string>
     <string name="selection_clear">Zurücksetzen</string>
     <string name="selection_reveal_sets">Sets anzeigen</string>
     <plurals name="selection_cards_selected">
@@ -72,15 +79,11 @@
     <!-- Tutorial -->
     <string name="tut_title">Tutorial</string>
     <string name="tut_intro">Diese App hilft dir, Sets im Kartenspiel Set zu finden. Lass uns kurz die Funktionen durchgehen.</string>
-    <string name="tut_scan_cards">Tippe auf die Kamera-Schaltfläche, um Karten auf dem Tisch zu scannen.</string>
     <string name="tut_scan_appears">Dein Scan erscheint hier.</string>
     <string name="tut_sets_and_reveal">In der Kopfzeile siehst du die Anzahl der Karten und wie viele Sets sie enthalten. Um die Sets zu sehen, tippe auf „%s“.</string>
-    <string name="tut_scan_edit">Der Scan kann von Hand bearbeitet oder ganz weggelassen werden. Tippe auf eine Karte, um sie auszugrauen und zu ignorieren.</string>
-    <string name="tut_manual_selection_intro">Du kannst auch eine manuelle Auswahl erstellen, um deinen Scan zu korrigieren oder zu ergänzen. Tippe entweder auf „+“ oder wechsle zum Tab „%s“.</string>
-    <string name="tut_manual_selection">Tippe auf eine Karte, um sie zum Spielfeld hinzuzufügen. Oder tippe erneut, um sie zu entfernen. Karten, die bereits auf dem Spielfeld sind, sind hervorgehoben.</string>
-    <string name="tut_tabs_are_views">Die Tabs „%1$s“ und „%2$s“ sind nur zwei verschiedene Ansichten deiner Kartenauswahl.</string>
+    <string name="tut_scan_edit">Tippe auf eine Karte, um sie zu verwerfen oder zu ändern.</string>
     <string name="tut_demo_playing">Demonstration läuft …</string>
-    <string name="tut_re_run_tutorial">Du kannst dieses Tutorial jederzeit erneut starten, indem du auf das Hilfesymbol oben rechts tippst.</string>
+    <string name="tut_re_run_tutorial">Tippe auf die Hilfe-Schaltfläche, um dieses Tutorial aufzurufen.</string>
     <string name="tut_next">Weiter</string>
     <string name="tut_back">Zurück</string>
     <string name="tut_skip">Tutorial überspringen</string>

@@ -17,15 +17,22 @@
     <string name="settings_language_french">Français</string>
 
     <!-- Selection Screen -->
-    <string name="selection_tab_board">Tablero</string>
-    <string name="selection_tab_deck">Mazo</string>
-    <string name="selection_scan_empty">¡Toca la cámara para escanear cartas!</string>
-    <string name="selection_manual_selection">Selección manual</string>
-    <string name="selection_add_cards">Añadir cartas a tu selección manual</string>
+    <string name="selection_scan_empty">Toca la cámara para escanear cartas.</string>
+    <string name="selection_manual_empty">Toca el lápiz para seleccionar cartas manualmente.</string>
+    <string name="selection_manual_selection">Manual</string>
+    <string name="selection_remove_card">Quitar carta</string>
+    <string name="selection_scan_cards">Escanear cartas</string>
+    <string name="selection_edit_cards">Editar selección manual</string>
+    <string name="manual_picker_title">Editar selección</string>
+    <string name="manual_picker_done">Hecho</string>
     <string name="selection_scan">Escanear</string>
     <string name="selection_reset_view">Restablecer vista</string>
-    <string name="selection_duplicate_warning">Cartas duplicadas detectadas</string>
+    <string name="selection_duplicate_warning">Duplicados</string>
     <string name="selection_duplicate_card">Carta duplicada</string>
+    <string name="picker_title">Cambiar carta</string>
+    <string name="picker_cancel">Cancelar</string>
+    <string name="picker_ignored">Ignorada</string>
+    <string name="picker_scanned">Escaneada</string>
     <string name="selection_clear">Restablecer</string>
     <string name="selection_reveal_sets">Mostrar sets</string>
     <plurals name="selection_cards_selected">
@@ -72,15 +79,11 @@
     <!-- Tutorial -->
     <string name="tut_title">Tutorial</string>
     <string name="tut_intro">Esta app te ayuda a encontrar sets en el juego de cartas Set. Vamos a repasar rápidamente las funciones.</string>
-    <string name="tut_scan_cards">Toca el botón de la cámara para escanear cartas sobre la mesa.</string>
     <string name="tut_scan_appears">Tu escaneo aparece aquí.</string>
     <string name="tut_sets_and_reveal">En la barra superior puedes ver el número de cartas y cuántos sets contienen. Para ver los sets, toca «%s».</string>
-    <string name="tut_scan_edit">El escaneo se puede editar a mano u omitir por completo. Toca cualquier carta para atenuarla e ignorarla.</string>
-    <string name="tut_manual_selection_intro">También puedes crear una selección manual para corregir o complementar tu escaneo. Toca «+» o cambia a la pestaña «%s».</string>
-    <string name="tut_manual_selection">Toca cualquier carta para añadirla al tablero. O tócala de nuevo para quitarla. Las cartas que ya están en el tablero aparecen resaltadas.</string>
-    <string name="tut_tabs_are_views">Las pestañas «%1$s» y «%2$s» son solo dos vistas distintas de tu selección de cartas.</string>
+    <string name="tut_scan_edit">Toca cualquier carta para descartarla o cambiarla.</string>
     <string name="tut_demo_playing">Demostración en curso…</string>
-    <string name="tut_re_run_tutorial">Puedes reiniciar este tutorial en cualquier momento tocando el icono de ayuda en la esquina superior derecha.</string>
+    <string name="tut_re_run_tutorial">Toca el botón de ayuda para abrir este tutorial.</string>
     <string name="tut_next">Siguiente</string>
     <string name="tut_back">Atrás</string>
     <string name="tut_skip">Omitir tutorial</string>

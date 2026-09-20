@@ -23,25 +23,17 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.fabianleven.setdetect.R
-import com.fabianleven.setdetect.ui.BOARD_TAB_INDEX
-import com.fabianleven.setdetect.ui.DECK_TAB_INDEX
 
-// requiredTab is null for steps whose target (top bar / bottom bar) is
-// reachable from either tab; otherwise the tab that must be active for the
-// step's target to be composed and visible.
 enum class TutorialStep(
     val titleRes: Int,
-    val descriptionRes: Int,
-    val requiredTab: Int? = null
+    val descriptionRes: Int
 ) {
     INTRO(R.string.tut_title, R.string.tut_intro),
-    SCAN_CARDS(R.string.tut_title, R.string.tut_scan_cards, BOARD_TAB_INDEX),
-    SCAN_APPEARS(R.string.tut_title, R.string.tut_scan_appears, BOARD_TAB_INDEX),
+    SCAN_CARDS(R.string.tut_title, R.string.selection_scan_empty),
+    SCAN_APPEARS(R.string.tut_title, R.string.tut_scan_appears),
     SETS_AND_REVEAL(R.string.tut_title, R.string.tut_sets_and_reveal),
-    SCAN_EDIT(R.string.tut_title, R.string.tut_scan_edit, BOARD_TAB_INDEX),
-    MANUAL_SELECTION_INTRO(R.string.tut_title, R.string.tut_manual_selection_intro, BOARD_TAB_INDEX),
-    MANUAL_SELECTION(R.string.tut_title, R.string.tut_manual_selection, DECK_TAB_INDEX),
-    TABS_ARE_VIEWS(R.string.tut_title, R.string.tut_tabs_are_views),
+    SCAN_EDIT(R.string.tut_title, R.string.tut_scan_edit),
+    MANUAL_SELECTION(R.string.tut_title, R.string.selection_manual_empty),
     RE_RUN_TUTORIAL(R.string.tut_title, R.string.tut_re_run_tutorial)
 }
 
@@ -59,9 +51,8 @@ fun TutorialOverlay(
     isLastStep: Boolean,
     isDemoPlaying: Boolean = false,
     forceCenter: Boolean = false,
-    // Non-null only on the last step: lets the user turn off "show
-    // tutorial on startup" right where they're told they can restart it
-    // later, instead of only from Settings. Null hides the checkbox.
+    // Non-null only on the last step, where it shows a checkbox for turning
+    // off "show tutorial on startup". Null hides the checkbox.
     startupToggleChecked: Boolean? = null,
     onStartupToggleChanged: (Boolean) -> Unit = {}
 ) {
@@ -87,14 +78,10 @@ fun TutorialOverlay(
         val isLargeArea = hasTarget && !isMultiTarget &&
             validRects[0].width > screenWidthPx * 0.7f && validRects[0].height > screenHeightPx * 0.5f
 
-        // The text card must never sit on top of the element(s) it's explaining,
-        // so instead of always centering it, anchor it to whichever half of the
-        // screen the (single) target *isn't* in: below a target in the top
-        // half, above one in the bottom half. Falls back to centered when
-        // there's no target (INTRO), the target is too large to leave anywhere
-        // clear, there are multiple separate targets to highlight at once
-        // (nothing to anchor relative to a single position), or the step
-        // explicitly asks to always be centered regardless of target geometry.
+        // The text card must not cover its target, so it anchors to the half of
+        // the screen the single target isn't in. Centered when there is no
+        // target, the target is too large, there are multiple targets, or the
+        // step forces centering.
         val cardAlignment = when {
             forceCenter || !hasTarget || isLargeArea || isMultiTarget -> Alignment.Center
             validRects[0].center.y < screenHeightPx / 2f -> Alignment.BottomCenter
@@ -164,8 +151,7 @@ fun TutorialOverlay(
                         blendMode = BlendMode.Clear
                     )
 
-                    // isLargeArea only ever applies to a single target, so it's
-                    // safe to gate the pulsing border on it here too.
+                    // Large areas (single target only) get no pulsing border.
                     if (!isLargeArea) {
                         // Absolute pulsing border centered on the rectangle
                         val pW = minOf(pulseOffsetPx, minOf(center.x, size.width - center.x) - safetyMargin - halfW)
@@ -191,9 +177,7 @@ fun TutorialOverlay(
         Card(
             modifier = Modifier
                 .align(cardAlignment)
-                // Keep clear of the status bar / gesture nav bar: BottomCenter
-                // and TopCenter alignment would otherwise push the card right up
-                // against (or under) them.
+                // Keep clear of the status bar and gesture nav bar.
                 .windowInsetsPadding(WindowInsets.systemBars)
                 .graphicsLayer(alpha = alpha)
                 .padding(horizontal = 24.dp, vertical = 20.dp)

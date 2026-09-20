@@ -17,15 +17,22 @@
     <string name="settings_language_french">Français</string>
 
     <!-- Selection Screen -->
-    <string name="selection_tab_board">Board</string>
-    <string name="selection_tab_deck">Deck</string>
-    <string name="selection_scan_empty">Tap the camera to scan cards!</string>
-    <string name="selection_manual_selection">Manual selection</string>
-    <string name="selection_add_cards">Add cards to your manual selection</string>
+    <string name="selection_scan_empty">Tap the camera to scan cards.</string>
+    <string name="selection_manual_empty">Tap the pen to select cards manually.</string>
+    <string name="selection_manual_selection">Manual</string>
+    <string name="selection_remove_card">Remove card</string>
+    <string name="selection_scan_cards">Scan cards</string>
+    <string name="selection_edit_cards">Edit manual selection</string>
+    <string name="manual_picker_title">Edit selection</string>
+    <string name="manual_picker_done">Done</string>
     <string name="selection_scan">Scan</string>
     <string name="selection_reset_view">Reset view</string>
-    <string name="selection_duplicate_warning">Duplicate cards detected</string>
+    <string name="selection_duplicate_warning">Duplicates</string>
     <string name="selection_duplicate_card">Duplicate card</string>
+    <string name="picker_title">Change card</string>
+    <string name="picker_cancel">Cancel</string>
+    <string name="picker_ignored">Ignored</string>
+    <string name="picker_scanned">Scanned</string>
     <string name="selection_clear">Clear</string>
     <string name="selection_reveal_sets">Reveal sets</string>
     <plurals name="selection_cards_selected">
@@ -72,15 +79,11 @@
     <!-- Tutorial -->
     <string name="tut_title">Tutorial</string>
     <string name="tut_intro">This app helps you find sets in the game of Set. Let\'s quickly walk through the features.</string>
-    <string name="tut_scan_cards">Tap the camera button to scan an arrangement of cards laid out on the table.</string>
     <string name="tut_scan_appears">Your scan appears here.</string>
     <string name="tut_sets_and_reveal">At the top you can see the number of cards and how many sets they contain. To see the actual sets, tap \'%s\'.</string>
-    <string name="tut_scan_edit">The scan can be edited by hand or omitted entirely. Tap any card to gray it out and ignore it.</string>
-    <string name="tut_manual_selection_intro">You can also build a manual selection to correct or complement your scan. Either tap \'+\' or switch to the \'%s\' tab.</string>
-    <string name="tut_manual_selection">Tap any card to add it to the board, or tap it again to remove it. Cards already on the board are highlighted.</string>
-    <string name="tut_tabs_are_views">The \'%1$s\' and \'%2$s\' tabs are just two different views of your card selection.</string>
+    <string name="tut_scan_edit">Tap any card to discard or change it.</string>
     <string name="tut_demo_playing">Demonstrating…</string>
-    <string name="tut_re_run_tutorial">You can always restart this tutorial by tapping the help icon in the top right corner.</string>
+    <string name="tut_re_run_tutorial">Tap the help button to bring up this tutorial.</string>
     <string name="tut_next">Next</string>
     <string name="tut_back">Back</string>
     <string name="tut_skip">Skip tutorial</string>

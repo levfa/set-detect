@@ -1,12 +1,16 @@
 package com.fabianleven.setdetect.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.gestures.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.RestartAlt
-import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -26,37 +30,35 @@ import androidx.compose.ui.zIndex
 import com.fabianleven.setdetect.R
 import com.fabianleven.setdetect.domain.CardsArrangement
 import com.fabianleven.setdetect.domain.SetCard
+import com.fabianleven.setdetect.domain.SlotChoice
+import com.fabianleven.setdetect.domain.resolveSlot
+
+private const val PressedScale = 0.9f
 
 @Composable
 fun ArrangementView(
     arrangement: CardsArrangement,
-    cards: List<SetCard?>,
-    selectedCards: Set<SetCard>,
-    onToggleCard: (SetCard) -> Unit,
+    cards: List<SetCard>,
+    choices: List<SlotChoice>,
+    onCardClick: (Int) -> Unit,
+    // Slot whose picker is opening or open; drawn pressed-in with an outline.
+    activeSlot: Int? = null,
     modifier: Modifier = Modifier,
-    // Set by the tutorial while it's demonstrating excluding a card: reports
-    // that specific card's on-screen position back via onHighlightedCardPositioned
-    // so the tutorial can draw a tap effect exactly where it is, rather than
-    // anywhere generic on the arrangement.
-    highlightedCard: SetCard? = null,
+    // Set by the tutorial while demonstrating a card edit; that slot's
+    // on-screen position is reported through onHighlightedCardPositioned.
+    highlightedSlot: Int? = null,
     onHighlightedCardPositioned: (Rect) -> Unit = {},
-    // Cards whose attributes exactly match another card currently on the board:
-    // either the same physical card is there twice, or classification
-    // misread one of them. Each gets a small badge; see BoardTab for the
-    // corresponding screen-corner banner.
+    // Cards whose attributes match another card on the board (a repeated
+    // card or a misclassification). Each gets a small badge.
     duplicateCards: Set<SetCard> = emptySet()
 ) {
     var manualRotation by remember(arrangement) { mutableFloatStateOf(0f) }
     var manualScale by remember(arrangement) { mutableFloatStateOf(1f) }
 
     BoxWithConstraints(
-        // Nothing clips a graphicsLayer's drawing to its layout bounds by
-        // default in Compose, so a zoomed-in card could paint outside this
-        // view, over whatever's above it in BoardTab's Column
-        // (the Manual Selection section), since that's drawn earlier and so
-        // sits underneath in paint order. clipToBounds() pins the drawn
-        // content to exactly this view's own area on all four sides,
-        // regardless of scale or rotation.
+        // A graphicsLayer isn't clipped to layout bounds by default, so zoomed
+        // cards could paint over neighboring content. clipToBounds() keeps the
+        // drawing within this view regardless of scale or rotation.
         modifier = modifier
             .clipToBounds()
             .pointerInput(arrangement) {
@@ -93,10 +95,8 @@ fun ArrangementView(
         val viewWidth = maxWidth
         val viewHeight = maxHeight
 
-        // The arrangement is calculated in a coordinate system where cards fit
-        // within a [0, 1] range, scaled here to fit the view while preserving
-        // aspect ratio and shrunk by a factor (approx 1/sqrt(2)) so it stays
-        // within bounds when rotated.
+        // The arrangement uses a [0, 1] coordinate system, scaled to fit the view
+        // and shrunk by about 1/sqrt(2) so it stays in bounds when rotated.
         val baseScale = minOf(viewWidth.value, viewHeight.value) * 0.7f
         val baseOffsetX = (viewWidth.value - baseScale) / 2
         val baseOffsetY = (viewHeight.value - baseScale) / 2
@@ -111,16 +111,24 @@ fun ArrangementView(
                 }
         ) {
             arrangement.cardPoses.forEachIndexed { index, pose ->
-                val card = cards.getOrNull(index) ?: return@forEachIndexed
+                val scanned = cards.getOrNull(index) ?: return@forEachIndexed
+                val choice = choices.getOrElse(index) { SlotChoice.Original }
+                val resolved = resolveSlot(scanned, choice)
+                val card = resolved ?: scanned
+                val interaction = remember { MutableInteractionSource() }
+                val pressed by interaction.collectIsPressedAsState()
+                val pressScale by animateFloatAsState(
+                    if (pressed || index == activeSlot) PressedScale else 1f,
+                    label = "pressScale"
+                )
                 val zOrder = arrangement.cardZOrders.getOrNull(index) ?: 0
                 
                 val rotationDegrees = Math.toDegrees(pose.angle.toDouble()).toFloat()
                 
-                // C++ arrangement gives center and width in normalized space. Height
-                // is derived from width via the fixed card aspect ratio, not the
-                // arrangement's own height, so the box always matches CardView's
-                // aspect ratio exactly; an independently-estimated height could
-                // letterbox or crop it.
+                // The arrangement gives center and width in normalized space. Height
+                // is derived from width via the card aspect ratio, not the
+                // arrangement's own height, so the box always matches the card's
+                // aspect ratio.
                 val cardW = arrangement.cardWidth * baseScale
                 val cardH = cardW / CardAspectRatio
                 val cardX = pose.centerX * baseScale + baseOffsetX - (cardW / 2)
@@ -133,9 +141,11 @@ fun ArrangementView(
                         .zIndex(zOrder.toFloat())
                         .graphicsLayer {
                             rotationZ = rotationDegrees
+                            scaleX = pressScale
+                            scaleY = pressScale
                         }
                         .let {
-                            if (card == highlightedCard) {
+                            if (index == highlightedSlot) {
                                 it.onGloballyPositioned { coords -> onHighlightedCardPositioned(coords.boundsInWindow()) }
                             } else {
                                 it
@@ -144,23 +154,26 @@ fun ArrangementView(
                 ) {
                     CardView(
                         card = card,
-                        isSelected = selectedCards.contains(card),
-                        isActive = selectedCards.contains(card),
+                        isSelected = resolved != null,
+                        isActive = resolved != null,
                         showBorder = false,
-                        onClick = { onToggleCard(card) },
+                        onClick = { onCardClick(index) },
+                        interactionSource = interaction,
                         modifier = Modifier.fillMaxSize()
                     )
-                    if (card in duplicateCards) {
-                        Icon(
-                            imageVector = Icons.Rounded.Warning,
-                            contentDescription = stringResource(R.string.selection_duplicate_card),
-                            tint = MaterialTheme.colorScheme.onError,
+                    if (index == activeSlot) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12))
+                        )
+                    }
+                    if (resolved != null && resolved in duplicateCards) {
+                        DuplicateBadge(
+                            iconSize = 9.dp,
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
                                 .padding(1.dp)
-                                .background(MaterialTheme.colorScheme.error, CircleShape)
-                                .padding(1.dp)
-                                .size(9.dp)
                         )
                     }
                 }

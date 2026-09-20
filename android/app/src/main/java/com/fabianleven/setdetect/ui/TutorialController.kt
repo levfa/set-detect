@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewModelScope
 import com.fabianleven.setdetect.domain.Detection
 import com.fabianleven.setdetect.domain.SetCard
+import com.fabianleven.setdetect.domain.SlotChoice
 import com.fabianleven.setdetect.domain.UserPreferencesRepository
 import com.fabianleven.setdetect.domain.createExampleDetection
 import com.fabianleven.setdetect.ui.components.TutorialStep
@@ -15,12 +16,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-// Owns all onboarding-tutorial state and choreography for SelectionScreen,
-// operating on the host ViewModel's selection/scan state (SelectionViewModel
-// keeps `scannedDetection`'s setter `internal` specifically so this class can
-// drive it), kept as a separate object so the tutorial's involved
-// step-by-step scripting doesn't drown out the selection/scanning feature
-// it's layered on top of.
+// Owns the onboarding tutorial's state and step choreography, operating on the
+// host ViewModel's selection and scan state.
 class TutorialController(
     private val viewModel: SelectionViewModel,
     private val userPreferencesRepository: UserPreferencesRepository?
@@ -34,58 +31,32 @@ class TutorialController(
     var isDemoPlaying by mutableStateOf(false)
         private set
 
-    // Non-null while a scripted tab switch is in progress: the index of the
-    // tab being "tapped". SelectionScreen hides the tutorial overlay
-    // entirely and shows a tap ripple at that tab's position while this is
-    // set, so the switch reads as an actual interaction instead of
-    // happening invisibly behind the overlay.
-    var simulatedTapTarget by mutableStateOf<Int?>(null)
+    // The scanned-card slot the Scan Edit demo is currently editing, if any.
+    // The arrangement reports that card's on-screen position so the tutorial
+    // can draw a tap effect on it. Null outside that demo.
+    var demoSlot by mutableStateOf<Int?>(null)
         private set
 
-    // The card the Scan Edit demo is currently toggling, if any.
-    // ArrangementView reports that specific card's on-screen position back
-    // via TutorialTargets so the tutorial can draw a tap effect exactly on
-    // it. Null outside that demo.
-    var demoCard by mutableStateOf<SetCard?>(null)
-        private set
-
-    // Bumped each time the Scan Edit demo wants a fresh tap-ripple drawn on
-    // demoCard's position: a plain "is a ripple showing" boolean can't
-    // replay the same animation twice, so this acts as a restart key instead.
+    // Bumped each time the Scan Edit demo needs a fresh tap-ripple on the demo
+    // slot. Acts as an animation restart key, which a boolean can't do.
     var demoCardTapTrigger by mutableIntStateOf(0)
         private set
 
-    // Set by SelectionScreen so this controller can drive the one demo
-    // animation it has no direct access to: scrolling the Deck tab's grid
-    // needs LazyGridState, which only exists in Compose. Performs the scroll
-    // and returns whichever cards ended up centered on screen
-    // afterward (computed from real layout there, not a hardcoded guess).
-    var onScrollRequest: (suspend () -> List<SetCard>)? = null
-
-    // Backs the "Show tutorial on startup" checkbox on the last step; seeded
-    // from the persisted preference when the tutorial starts and written
-    // straight through on toggle, so it and the Settings screen's own
-    // switch always agree since both read/write the same DataStore value.
+    // Backs the "Show tutorial on startup" checkbox on the last step. Seeded
+    // from the persisted preference and written through on toggle, so it
+    // agrees with the Settings switch.
     var showOnStartup by mutableStateOf(true)
         private set
 
     private var savedSelection: List<SetCard> = emptyList()
+    private var savedChoices: Map<Int, SlotChoice> = emptyMap()
     private var savedDetection: Detection? = null
-    private var savedTabIndex: Int = BOARD_TAB_INDEX
 
     private var animationJob: Job? = null
 
-    // Cards the manual-selection demo added, so a later re-entry into this
-    // step can precisely undo them, and skipping mid-animation can still add
-    // them. Populated once the demo's two-stroke scroll settles; there's no
-    // way to know this in advance since it depends on wherever that scroll
-    // lands on the real device.
-    private var demoAddedCards: List<SetCard> = emptyList()
-
     init {
         viewModel.viewModelScope.launch {
-            // A standing preference, not a one-shot flag: this re-checks (and
-            // may re-start the tutorial) on every launch, not just the first.
+            // Checked on every launch, not just the first.
             if (userPreferencesRepository?.showTutorialOnStartup?.first() ?: true) {
                 start()
             }
@@ -95,14 +66,12 @@ class TutorialController(
     fun start() {
         animationJob?.cancel()
         isDemoPlaying = false
-        savedSelection = viewModel.selectedCards.toList()
+        savedSelection = viewModel.manualCards.toList()
+        savedChoices = viewModel.slotChoices.toMap()
         savedDetection = viewModel.scannedDetection
-        savedTabIndex = viewModel.selectedTabIndex
-        // Start from a clean "no scan yet" state: the example scan is only
-        // introduced once the tutorial explains scanning, matching the real
-        // flow of tap-camera-then-see-results instead of showing results
-        // before that's explained.
-        viewModel.selectedCards.clear()
+        // Start with no scan; the example scan appears once the tutorial
+        // explains scanning.
+        viewModel.manualCards.clear()
         viewModel.scannedDetection = null
         currentStep = TutorialStep.INTRO
         active = true
@@ -111,10 +80,8 @@ class TutorialController(
         }
     }
 
-    // Backs both the last tutorial step's checkbox and (indirectly, since
-    // they share the same DataStore value) the Settings screen's switch.
-    // Named "update", not "setShowOnStartup", to avoid clashing with the
-    // showOnStartup property's own JVM-synthesized setter.
+    // Not named setShowOnStartup, which would clash with the property's
+    // JVM-synthesized setter.
     fun updateShowOnStartup(enabled: Boolean) {
         showOnStartup = enabled
         viewModel.viewModelScope.launch {
@@ -125,16 +92,6 @@ class TutorialController(
     fun next() {
         val steps = TutorialStep.entries
         val nextIndex = currentStep.ordinal + 1
-
-        if (currentStep == TutorialStep.MANUAL_SELECTION_INTRO && simulatedTapTarget == null) {
-            switchToDeckTabDemo()
-            return
-        }
-
-        if (currentStep == TutorialStep.MANUAL_SELECTION && !isDemoPlaying) {
-            autoSelectSampleCards()
-            return
-        }
 
         if (currentStep == TutorialStep.SCAN_EDIT && !isDemoPlaying) {
             playScanResultDemo()
@@ -153,9 +110,7 @@ class TutorialController(
         val steps = TutorialStep.entries
         val prevIndex = currentStep.ordinal - 1
 
-        // This re-derives the right scan/selection state for whichever step
-        // we land back on (e.g. re-populating the example scan when
-        // returning to a Board-tab step from MANUAL_SELECTION).
+        // Entering a step re-derives its scan and selection state.
         if (prevIndex >= 0) {
             currentStep = steps[prevIndex]
             onStepEntered(currentStep)
@@ -163,158 +118,53 @@ class TutorialController(
     }
 
     fun skip() {
-        if (currentStep == TutorialStep.MANUAL_SELECTION) {
-            animationJob?.cancel()
-            // If the demo animation never ran, there's nothing to fall back to:
-            // what would've been centered can't be known without
-            // running the scroll, so this is a no-op.
-            viewModel.addCards(demoAddedCards)
-            // Skipping bypasses the scripted tap back to Board, so switch
-            // directly instead of leaving the user stranded on Deck.
-            viewModel.selectedTabIndex = BOARD_TAB_INDEX
-        }
-        simulatedTapTarget = null
+        animationJob?.cancel()
+        isDemoPlaying = false
+        demoSlot = null
         currentStep = TutorialStep.RE_RUN_TUTORIAL
         onStepEntered(currentStep)
     }
 
     fun dismiss() {
         active = false
-        viewModel.selectedCards.clear()
+        viewModel.manualCards.clear()
         viewModel.scannedDetection = savedDetection
-        viewModel.addCards(savedSelection)
-        viewModel.selectedTabIndex = savedTabIndex
-        // Deliberately doesn't touch showTutorialOnStartup: finishing (or
-        // skipping) the tutorial once shouldn't silently turn off future
-        // auto-starts; only the explicit checkbox/Settings switch should.
+        viewModel.slotChoices.putAll(savedChoices)
+        viewModel.manualCards.addAll(savedSelection)
+        // Leaves the show-on-startup preference alone; only the checkbox or
+        // Settings switch changes it.
     }
 
-    // Populates the Board tab with a synthetic example scan so its tutorial
-    // steps have real content to point at without a camera capture. All
-    // matched cards start selected, exactly like a real scan, which
-    // auto-selects everything it finds. The Manual Selection row is
-    // deliberately left empty here: it only gets populated once the
-    // manual-selection demo adds cards from the Deck tab, so the tutorial
-    // explains that row while it's empty and then demonstrates filling it,
-    // instead of pre-filling it before that's ever explained. The
-    // grayed-out "excluded" look is demonstrated separately, by a live
-    // toggle during the Scan Edit demo.
+    // Populates the board with a synthetic example scan. The manual-selection
+    // area is left empty so the tutorial can explain it from scratch.
     private fun setExampleScan() {
         val example = createExampleDetection()
         viewModel.scannedDetection = example
-        viewModel.selectedCards.clear()
-        viewModel.addCards(example.detectedCards.mapNotNull { it.card })
-    }
-
-    // Switches tabs as a scripted tap: hides the tutorial overlay so the tab
-    // row is fully visible, shows a tap ripple there, then performs the
-    // actual switch and pauses (settleDelayMs) before the overlay is
-    // allowed to return, longer after landing back on the Board, so there's
-    // time to take in the result before the next step's text covers it.
-    private suspend fun simulateTabTap(targetTab: Int, settleDelayMs: Long = 500) {
-        simulatedTapTarget = targetTab
-        delay(600)
-        viewModel.selectedTabIndex = targetTab
-        delay(settleDelayMs)
-        simulatedTapTarget = null
+        viewModel.manualCards.clear()
     }
 
     private fun onStepEntered(step: TutorialStep) {
         animationJob?.cancel()
         isDemoPlaying = false
-        step.requiredTab?.let { viewModel.selectedTabIndex = it }
         when (step) {
             TutorialStep.SCAN_CARDS -> {
-                viewModel.selectedCards.clear()
+                viewModel.manualCards.clear()
                 viewModel.scannedDetection = null
             }
             TutorialStep.SCAN_APPEARS,
             TutorialStep.SETS_AND_REVEAL,
             TutorialStep.SCAN_EDIT,
-            TutorialStep.MANUAL_SELECTION_INTRO -> setExampleScan()
-            // Undo whatever the demo added on a previous visit to this step,
-            // so re-entering it (Back, then Next again) always starts from
-            // the same baseline instead of finding the demo cards already
-            // selected and silently doing nothing the second time.
-            TutorialStep.MANUAL_SELECTION -> {
-                demoAddedCards.forEach { viewModel.selectedCards.remove(it) }
-                demoAddedCards = emptyList()
-            }
+            TutorialStep.MANUAL_SELECTION -> setExampleScan()
             else -> {}
         }
     }
 
-    // Switches to the Deck tab as a scripted tap before landing on
-    // MANUAL_SELECTION.
-    private fun switchToDeckTabDemo() {
-        animationJob = viewModel.viewModelScope.launch {
-            simulateTabTap(DECK_TAB_INDEX)
-            val steps = TutorialStep.entries
-            val nextIndex = currentStep.ordinal + 1
-            if (nextIndex < steps.size) {
-                currentStep = steps[nextIndex]
-                onStepEntered(currentStep)
-            }
-        }
-    }
-
-    // Demonstrates adding cards manually. Deliberately does *not* clear the
-    // existing selection first. The whole point is continuity with the scan
-    // just shown on the Board tab: these are a few more cards added on top of
-    // it, not an unrelated do-over. onScrollRequest performs the reset plus
-    // two natural downward scroll strokes and returns whichever cards ended
-    // up centered on screen, read from real layout measurements, not
-    // guessed here.
-    private fun autoSelectSampleCards() {
-        animationJob = viewModel.viewModelScope.launch {
-            isDemoPlaying = true
-
-            val centeredCards = onScrollRequest?.invoke() ?: emptyList()
-            val alreadySelected = viewModel.selectedCards.toSet()
-            val newCards = centeredCards.filter { it !in alreadySelected }
-            demoAddedCards = newCards
-
-            delay(500)
-            newCards.forEach { delay(700); viewModel.toggleSelection(it) }
-
-            delay(900)
-
-            if (currentStep == TutorialStep.MANUAL_SELECTION) {
-                // Close the loop: switch back to the Board tab so the cards
-                // just added are seen landing in the previously-empty Manual
-                // Selection row. A longer settle delay here (vs. the default)
-                // gives the
-                // user a real moment to take in the board before moving on.
-                // isDemoPlaying deliberately stays true through this whole
-                // switch-and-settle stretch, not just the scroll/select part
-                // above: from the user's perspective it's all one demo, and
-                // TutorialLayer's small badge (anchored to the Deck tab) uses
-                // this flag to stay visible the entire time, including while
-                // the main overlay is hidden for the scripted tap itself.
-                simulateTabTap(BOARD_TAB_INDEX, settleDelayMs = 2500)
-                isDemoPlaying = false
-                val steps = TutorialStep.entries
-                val nextIndex = currentStep.ordinal + 1
-                if (nextIndex < steps.size) {
-                    currentStep = steps[nextIndex]
-                    onStepEntered(currentStep)
-                }
-            } else {
-                isDemoPlaying = false
-            }
-        }
-    }
-
-    // Demonstrates excluding a scanned card (the gray-out), since the
-    // tutorial overlay blocks real taps on the cards underneath; without
-    // this, nothing ever exercises that interaction during the tutorial. A
-    // tap-ripple plays right on the card itself immediately before each
-    // toggle, so the gray-out reads as caused by a tap.
+    // Demonstrates ignoring a scanned card, since the tutorial overlay
+    // blocks real taps on the cards underneath. A tap-ripple plays on the
+    // card immediately before each change, so it reads as caused by a tap.
     private fun playScanResultDemo() {
-        val card = viewModel.scannedDetection?.detectedCards
-            ?.mapNotNull { it.card }
-            ?.firstOrNull { it in viewModel.selectedCards }
-        demoCard = card
+        val slot = if (viewModel.matchedCards.isEmpty()) null else 0
+        demoSlot = slot
 
         animationJob = viewModel.viewModelScope.launch {
             isDemoPlaying = true
@@ -322,18 +172,16 @@ class TutorialController(
             delay(400)
             demoCardTapTrigger++
             delay(300)
-            card?.let { viewModel.toggleSelection(it) }
+            slot?.let { viewModel.setSlotChoice(it, SlotChoice.Excluded) }
             delay(1300)
             demoCardTapTrigger++
             delay(300)
-            card?.let { viewModel.toggleSelection(it) }
+            slot?.let { viewModel.setSlotChoice(it, SlotChoice.Original) }
 
-            // A beat longer than the pause before the gray-out above: gives
-            // a moment to register the card is back before the demo
-            // ends and the next step's card appears.
+            // Lets the restored card register before the demo ends.
             delay(900)
             isDemoPlaying = false
-            demoCard = null
+            demoSlot = null
 
             if (currentStep == TutorialStep.SCAN_EDIT) {
                 val steps = TutorialStep.entries
