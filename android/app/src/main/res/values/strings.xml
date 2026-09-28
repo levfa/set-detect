@@ -48,6 +48,7 @@
     <!-- Camera Scan Screen -->
     <string name="camera_title">Scan cards</string>
     <string name="camera_scan">Scan</string>
+    <string name="camera_review_confirm">Confirm</string>
     <string name="camera_hint">Keep the camera steady. Press %s when the cards are detected.</string>
     <string name="camera_permission_required">Camera permission is required</string>
     <string name="camera_grant_permission">Grant permission</string>

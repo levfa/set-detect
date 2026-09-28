@@ -48,6 +48,7 @@
     <!-- Camera Scan Screen -->
     <string name="camera_title">Escanear cartas</string>
     <string name="camera_scan">Escanear</string>
+    <string name="camera_review_confirm">Confirmar</string>
     <string name="camera_hint">Mantén la cámara firme. Pulsa %s cuando se detecten las cartas.</string>
     <string name="camera_permission_required">Se requiere permiso de la cámara</string>
     <string name="camera_grant_permission">Conceder permiso</string>

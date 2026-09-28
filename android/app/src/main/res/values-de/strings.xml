@@ -48,6 +48,7 @@
     <!-- Camera Scan Screen -->
     <string name="camera_title">Karten scannen</string>
     <string name="camera_scan">Scannen</string>
+    <string name="camera_review_confirm">Bestätigen</string>
     <string name="camera_hint">Halte die Kamera ruhig. Drücke %s, sobald die Karten erkannt wurden.</string>
     <string name="camera_permission_required">Kamerazugriff ist erforderlich</string>
     <string name="camera_grant_permission">Zugriff erlauben</string>

@@ -4,31 +4,43 @@ import android.Manifest
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Matrix
-import android.graphics.PointF
 import android.util.Log
 import android.view.Surface
+import androidx.activity.compose.BackHandler
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -38,7 +50,7 @@ import com.fabianleven.setdetect.R
 import com.fabianleven.setdetect.domain.DetectedCard
 import com.fabianleven.setdetect.domain.Detection
 import com.fabianleven.setdetect.domain.NativeSetDetector
-import com.fabianleven.setdetect.domain.SetCard
+import com.fabianleven.setdetect.ui.components.ScanReviewOverlay
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -47,6 +59,86 @@ import java.io.FileOutputStream
 import java.util.concurrent.Executors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+
+// Duration of the post-tap review pause: cards stay on screen, emphasized
+// and dimmed, before auto-proceeding, giving time to catch a bad scan and
+// back out before it's submitted.
+private const val ScanReviewDurationMillis = 3000
+
+// How long the review's dim/outline entrance animation takes to fade and
+// pop in once it starts.
+private const val ScanReviewEntranceMillis = 220
+
+// Starting scale for each card's highlight ring, animated up to 1f with a
+// spring when review starts, for a pop on entry.
+private const val ScanReviewPopStartScale = 0.75f
+
+private enum class ScanPhase {
+    /** Live camera feed and detection running; Scan available. */
+    Live,
+
+    /** Paused on a frozen snapshot; cancellable via back or any tap. */
+    Reviewing,
+
+    /**
+     * The review pause elapsed without cancellation: onCardsDetected has
+     * been called and navigation away is in flight. The live preview stays
+     * hidden and nothing here is interactive again in this phase.
+     */
+    Committed
+}
+
+/** What's being reviewed, captured in one shot when a review pause starts. */
+private data class ScanSnapshot(
+    val detection: Detection?,
+    val cards: List<DetectedCard>,
+    val matrix: Matrix?,
+    val bitmap: Bitmap?
+)
+
+/**
+ * Hands off the one analysis-bitmap frame the review pause is currently
+ * showing, if any, so the analyzer thread never recycles a bitmap the UI
+ * thread is displaying.
+ *
+ * [record] and [take] are the only points of contact between the two
+ * threads and are synchronized on the same lock, so whichever runs second
+ * always sees the other's completed effect, never a half-applied one.
+ */
+private class LatestBitmapHolder {
+    private val lock = Any()
+    private var bitmap: Bitmap? = null
+
+    /**
+     * Records this frame's bitmap as the latest live one, recycling
+     * whatever it supersedes, unless [protectedBitmap] says that one is
+     * currently held for review, in which case it must survive until
+     * [release] releases it.
+     *
+     * Both possible lock-acquisition orders relative to [take] are safe:
+     * if this runs first, [take] simply reads the bitmap recorded here; if
+     * [take] runs first (claiming the previous bitmap for review before
+     * this call decides what to recycle), [protectedBitmap] reflects that
+     * claim and this skips recycling it.
+     */
+    fun record(newBitmap: Bitmap, protectedBitmap: () -> Bitmap?) {
+        synchronized(lock) {
+            val previous = bitmap
+            if (previous !== protectedBitmap()) previous?.recycle()
+            bitmap = newBitmap
+        }
+    }
+
+    /** Claims the current bitmap, if any, for the caller to hold onto. */
+    fun take(): Bitmap? = synchronized(lock) { bitmap }
+
+    fun release() {
+        synchronized(lock) {
+            bitmap?.recycle()
+            bitmap = null
+        }
+    }
+}
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -69,11 +161,72 @@ fun CameraScanScreen(
     val cameraStartFailedText = stringResource(R.string.camera_start_failed)
 
     var initProgress by remember { mutableStateOf(loadingText) }
-    var previewView by remember { mutableStateOf<PreviewView?>(null) }
     var analysisToViewMatrix by remember { mutableStateOf<Matrix?>(null) }
-    
+
+    var scanPhase by remember { mutableStateOf(ScanPhase.Live) }
+    var reviewSnapshot by remember { mutableStateOf<ScanSnapshot?>(null) }
+    // 1f = review pause just started, 0f = elapsed; drives both the timer
+    // bar and the auto-proceed itself, so the two can never drift apart.
+    val reviewCountdown = remember { Animatable(1f) }
+    // Current scale of the review's highlight-ring pop-in animation.
+    val reviewPopScale = remember { Animatable(ScanReviewPopStartScale) }
+
     val scope = rememberCoroutineScope()
     val analyzerExecutor = remember { Executors.newSingleThreadExecutor() }
+    val latestBitmap = remember { LatestBitmapHolder() }
+
+    // Cancels the review pause and returns to the live view; there's
+    // nothing to navigate away from yet since onCardsDetected hasn't been
+    // called. Triggered by system back and by tapping anywhere during the
+    // pause.
+    val cancelReview: () -> Unit = {
+        scanPhase = ScanPhase.Live
+        reviewSnapshot?.bitmap?.recycle()
+        reviewSnapshot = null
+    }
+    BackHandler(enabled = scanPhase == ScanPhase.Reviewing) { cancelReview() }
+
+    // Completes the review, whether the countdown ran out or the checkmark
+    // was tapped early. Setting scanPhase to Committed before calling
+    // onCardsDetected cancels the countdown coroutine, since its
+    // LaunchedEffect is keyed on scanPhase; that matters when this runs
+    // early, so the countdown can't also call onCardsDetected once it
+    // separately elapses.
+    val commitReview: () -> Unit = {
+        scanPhase = ScanPhase.Committed
+        reviewSnapshot?.detection?.let { onCardsDetected(it) }
+    }
+
+    // Freezes what's currently detected and enters the review pause. Shared
+    // by the Scan button and by tapping anywhere on the live view below, so
+    // there's a single place that decides what "start reviewing" means.
+    val startReview: () -> Unit = {
+        reviewSnapshot = ScanSnapshot(
+            detection = currentDetection,
+            cards = detectedCards,
+            matrix = analysisToViewMatrix,
+            bitmap = latestBitmap.take()
+        )
+        scanPhase = ScanPhase.Reviewing
+    }
+
+    LaunchedEffect(scanPhase) {
+        if (scanPhase == ScanPhase.Reviewing) {
+            reviewCountdown.snapTo(1f)
+            reviewPopScale.snapTo(ScanReviewPopStartScale)
+            launch {
+                reviewPopScale.animateTo(
+                    1f,
+                    spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium)
+                )
+            }
+            reviewCountdown.animateTo(0f, tween(ScanReviewDurationMillis, easing = LinearEasing))
+            // Reached only if uninterrupted: cancelling or committing early
+            // both change scanPhase, which cancels this coroutine via
+            // structured concurrency before this point.
+            commitReview()
+        }
+    }
 
     LaunchedEffect(Unit) {
         scope.launch(Dispatchers.IO) {
@@ -93,6 +246,8 @@ fun CameraScanScreen(
         onDispose {
             detector?.close()
             analyzerExecutor.shutdown()
+            latestBitmap.release()
+            reviewSnapshot?.bitmap?.recycle()
         }
     }
 
@@ -111,37 +266,54 @@ fun CameraScanScreen(
                     }
                 }
             } else {
-                val pv = remember { PreviewView(context).apply {
-                    implementationMode = PreviewView.ImplementationMode.PERFORMANCE
-                    scaleType = PreviewView.ScaleType.FIT_CENTER
-                } }
-                previewView = pv
+                val pv = remember {
+                    PreviewView(context).apply {
+                        implementationMode = PreviewView.ImplementationMode.PERFORMANCE
+                        scaleType = PreviewView.ScaleType.FIT_CENTER
+                    }
+                }
 
-                AndroidView(
-                    factory = { pv },
-                    modifier = Modifier.fillMaxSize()
-                )
+                // Hide so it does not flash through on back navigation
+                if (scanPhase != ScanPhase.Committed) {
+                    AndroidView(
+                        factory = { pv },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            // Tap anywhere on the live view to scan, not
+                            // just the button.
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                enabled = scanPhase == ScanPhase.Live && detectedCards.any { it.card != null }
+                            ) { startReview() }
+                    )
+                }
 
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val matrix = analysisToViewMatrix ?: return@Canvas
-                    
-                    detectedCards.forEach { card ->
-                        if (card.card != null && card.corners.size == 4) {
-                            val path = Path().apply {
-                                val pts = card.corners.map { corner ->
-                                    val src = floatArrayOf(corner.x, corner.y)
-                                    val dst = floatArrayOf(0f, 0f)
-                                    matrix.mapPoints(dst, src)
-                                    PointF(dst[0], dst[1])
-                                }
-                                moveTo(pts[0].x, pts[0].y)
-                                lineTo(pts[1].x, pts[1].y)
-                                lineTo(pts[2].x, pts[2].y)
-                                lineTo(pts[3].x, pts[3].y)
-                                close()
+                if (scanPhase == ScanPhase.Live) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val matrix = analysisToViewMatrix ?: return@Canvas
+                        detectedCards.forEach { card ->
+                            if (card.card != null && card.corners.size == 4) {
+                                drawPath(
+                                    quadPath(transformQuadCorners(card.corners, matrix)),
+                                    CardOutlineColor,
+                                    style = Stroke(width = 2.dp.toPx())
+                                )
                             }
-                            drawPath(path, Color.Yellow, style = Stroke(width = 2.dp.toPx()))
                         }
+                    }
+                } else {
+                    reviewSnapshot?.let { snapshot ->
+                        val elapsedMillis = (1f - reviewCountdown.value) * ScanReviewDurationMillis
+                        val entrance = (elapsedMillis / ScanReviewEntranceMillis).coerceIn(0f, 1f)
+                        ScanReviewOverlay(
+                            cards = snapshot.cards,
+                            matrix = snapshot.matrix,
+                            bitmap = snapshot.bitmap,
+                            entrance = entrance,
+                            popScale = reviewPopScale.value,
+                            onCancel = cancelReview
+                        )
                     }
                 }
 
@@ -161,13 +333,17 @@ fun CameraScanScreen(
                         .build()
 
                     val detectorRef = detector!!
-                    
+
                     imageAnalysis.setAnalyzer(analyzerExecutor) { imageProxy: ImageProxy ->
+                        if (scanPhase != ScanPhase.Live) {
+                            imageProxy.close()
+                            return@setAnalyzer
+                        }
                         try {
                             val bitmap = imageProxyToBitmap(imageProxy)
                             val results = detectorRef.detect(bitmap)
                             val correctionMatrix = getCorrectionMatrix(imageProxy, pv)
-                            bitmap.recycle()
+                            latestBitmap.record(bitmap) { reviewSnapshot?.bitmap }
                             analysisToViewMatrix = correctionMatrix
                             currentDetection = results
                             detectedCards = results?.detectedCards ?: emptyList()
@@ -196,7 +372,8 @@ fun CameraScanScreen(
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.camera_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    // Disabled during the review pause
+                    IconButton(onClick = onBack, enabled = scanPhase == ScanPhase.Live) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
@@ -222,23 +399,72 @@ fun CameraScanScreen(
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))
+                            )
+                        )
                         .navigationBarsPadding()
-                        .padding(bottom = 32.dp),
+                        .padding(horizontal = 24.dp)
+                        .padding(top = 40.dp, bottom = 32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        text = hintText,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    Button(
-                        onClick = {
-                            currentDetection?.let { onCardsDetected(it) }
-                        },
-                        enabled = detectedCards.any { it.card != null }
-                    ) {
-                        Text(stringResource(R.string.camera_scan))
+                    if (scanPhase == ScanPhase.Live) {
+                        Text(
+                            text = hintText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Button(
+                            onClick = startReview,
+                            enabled = detectedCards.any { it.card != null }
+                        ) {
+                            Text(stringResource(R.string.camera_scan))
+                        }
+                    } else {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(32.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(
+                                onClick = cancelReview,
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(Color.White.copy(alpha = 0.15f), CircleShape)
+                            ) {
+                                Icon(
+                                    Icons.Rounded.Close,
+                                    contentDescription = stringResource(R.string.picker_cancel),
+                                    tint = Color.White
+                                )
+                            }
+
+                            // The checkmark confirms; the X and
+                            // the rest of the screen cancel instead.
+                            IconButton(
+                                onClick = commitReview,
+                                modifier = Modifier.size(64.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                    CircularProgressIndicator(
+                                        progress = { reviewCountdown.value.coerceIn(0f, 1f) },
+                                        modifier = Modifier.fillMaxSize(),
+                                        color = Color.White,
+                                        trackColor = Color.White.copy(alpha = 0.25f),
+                                        strokeWidth = 3.dp,
+                                        gapSize = 0.dp
+                                    )
+                                    Icon(
+                                        Icons.Rounded.Check,
+                                        contentDescription = stringResource(R.string.camera_review_confirm),
+                                        tint = Color.White
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -259,12 +485,12 @@ fun CameraScanScreen(
 }
 
 /**
- * Creates a matrix that maps coordinates from the analysis bitmap produced by
- * imageProxyToBitmap() (already rotated to natural/upright orientation)
- * to the PreviewView's FIT_CENTER rendered region. Only FIT_CENTER scale and
- * letterbox offset are needed here; sensor rotation is already baked into the
- * bitmap (and therefore into every detected corner/arrangement coordinate),
- * so there's no separate rotation component to apply on top.
+ * Creates a matrix that maps coordinates from the analysis bitmap (already
+ * rotated to natural/upright orientation) to the PreviewView's FIT_CENTER
+ * rendered region. Only FIT_CENTER scale and letterbox offset are needed
+ * here; sensor rotation is already baked into the bitmap, and therefore into
+ * every detected corner/arrangement coordinate, so there's no separate
+ * rotation component to apply on top.
  */
 private fun getCorrectionMatrix(imageProxy: ImageProxy, previewView: PreviewView): Matrix {
     val rotationDegrees = imageProxy.imageInfo.rotationDegrees
@@ -294,9 +520,8 @@ private fun getCorrectionMatrix(imageProxy: ImageProxy, previewView: PreviewView
 /**
  * Copies the ImageAnalysis buffer into a Bitmap rotated to natural/upright
  * orientation, so detection and every downstream consumer of its
- * corner/arrangement coordinates (including the arrangement screen, which has
- * no rotation correction of its own) see the same canonically-oriented image
- * the native detector expects, rather than the raw sensor buffer.
+ * corner/arrangement coordinates see the same canonically-oriented image the
+ * native detector expects.
  */
 private fun imageProxyToBitmap(imageProxy: ImageProxy): Bitmap {
     val buffer = imageProxy.planes[0].buffer
