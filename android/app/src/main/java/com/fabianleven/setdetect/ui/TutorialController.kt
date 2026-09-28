@@ -8,19 +8,16 @@ import androidx.lifecycle.viewModelScope
 import com.fabianleven.setdetect.domain.Detection
 import com.fabianleven.setdetect.domain.SetCard
 import com.fabianleven.setdetect.domain.SlotChoice
-import com.fabianleven.setdetect.domain.UserPreferencesRepository
 import com.fabianleven.setdetect.domain.createExampleDetection
 import com.fabianleven.setdetect.ui.components.TutorialStep
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 // Owns the onboarding tutorial's state and step choreography, operating on the
 // host ViewModel's selection and scan state.
 class TutorialController(
-    private val viewModel: SelectionViewModel,
-    private val userPreferencesRepository: UserPreferencesRepository?
+    private val viewModel: SelectionViewModel
 ) {
     var active by mutableStateOf(false)
         private set
@@ -42,27 +39,12 @@ class TutorialController(
     var demoCardTapTrigger by mutableIntStateOf(0)
         private set
 
-    // Backs the "Show tutorial on startup" checkbox on the last step. Seeded
-    // from the persisted preference and written through on toggle, so it
-    // agrees with the Settings switch.
-    var showOnStartup by mutableStateOf(true)
-        private set
-
     private var savedSelection: List<SetCard> = emptyList()
     private var savedChoices: Map<Int, SlotChoice> = emptyMap()
     private var savedDetection: Detection? = null
     private var savedManualHeightDp: Float = DefaultManualHeight.value
 
     private var animationJob: Job? = null
-
-    init {
-        viewModel.viewModelScope.launch {
-            // Checked on every launch, not just the first.
-            if (userPreferencesRepository?.showTutorialOnStartup?.first() ?: true) {
-                start()
-            }
-        }
-    }
 
     fun start() {
         animationJob?.cancel()
@@ -80,18 +62,6 @@ class TutorialController(
         viewModel.manualHeightDp = DefaultManualHeight.value
         currentStep = TutorialStep.INTRO
         active = true
-        viewModel.viewModelScope.launch {
-            showOnStartup = userPreferencesRepository?.showTutorialOnStartup?.first() ?: true
-        }
-    }
-
-    // Not named setShowOnStartup, which would clash with the property's
-    // JVM-synthesized setter.
-    fun updateShowOnStartup(enabled: Boolean) {
-        showOnStartup = enabled
-        viewModel.viewModelScope.launch {
-            userPreferencesRepository?.setShowTutorialOnStartup(enabled)
-        }
     }
 
     fun next() {
@@ -126,8 +96,7 @@ class TutorialController(
         animationJob?.cancel()
         isDemoPlaying = false
         demoSlot = null
-        currentStep = TutorialStep.RE_RUN_TUTORIAL
-        onStepEntered(currentStep)
+        dismiss()
     }
 
     fun dismiss() {
@@ -137,8 +106,6 @@ class TutorialController(
         viewModel.slotChoices.putAll(savedChoices)
         viewModel.manualCards.addAll(savedSelection)
         viewModel.manualHeightDp = savedManualHeightDp
-        // Leaves the show-on-startup preference alone; only the checkbox or
-        // Settings switch changes it.
     }
 
     // Populates the board with a synthetic example scan. The manual-selection

@@ -6,9 +6,10 @@
     <string name="help">Hilfe</string>
     <string name="settings">Einstellungen</string>
     <string name="close">Schließen</string>
+    <string name="tutorial_hint">Tutorial</string>
 
     <!-- Settings Screen -->
-    <string name="settings_show_tutorial_on_startup">Tutorial beim Start anzeigen</string>
+    <string name="settings_show_tutorial_hint">Tutorial-Hinweis beim Start anzeigen</string>
     <string name="settings_language">Sprache</string>
     <string name="settings_language_system_default">Systemstandard</string>
     <string name="settings_language_english">English</string>
@@ -83,9 +84,7 @@
     <string name="tut_sets_and_reveal">In der Kopfzeile siehst du die Anzahl der Karten und wie viele Sets sie enthalten. Um die Sets zu sehen, tippe auf „%s“.</string>
     <string name="tut_scan_edit">Tippe auf eine Karte, um sie zu verwerfen oder zu ändern.</string>
     <string name="tut_demo_playing">Demonstration läuft …</string>
-    <string name="tut_re_run_tutorial">Tippe auf die Hilfe-Schaltfläche, um dieses Tutorial aufzurufen.</string>
     <string name="tut_next">Weiter</string>
-    <string name="tut_back">Zurück</string>
-    <string name="tut_skip">Tutorial überspringen</string>
+    <string name="tut_skip">Überspringen</string>
     <string name="tut_finish">Fertig</string>
 </resources>

@@ -16,9 +16,10 @@ import com.fabianleven.setdetect.domain.UserPreferencesRepository
 import com.fabianleven.setdetect.domain.findDuplicateCards
 import com.fabianleven.setdetect.domain.resolveBoard
 import com.fabianleven.setdetect.domain.toggleBoardCard
+import kotlinx.coroutines.flow.first
 
 class SelectionViewModel(
-    userPreferencesRepository: UserPreferencesRepository? = null
+    private val userPreferencesRepository: UserPreferencesRepository? = null
 ) : ViewModel() {
 
     // Cards the user added by hand, independent of the scan.
@@ -59,7 +60,18 @@ class SelectionViewModel(
         get() = findDuplicateCards(boardCards)
 
     // Owns the onboarding tutorial's state and step choreography.
-    val tutorial = TutorialController(this, userPreferencesRepository)
+    val tutorial = TutorialController(this)
+
+    private var tutorialHintConsumed = false
+
+    // Reads the "show tutorial hint" preference at most once per launch;
+    // returns false on every call after the first, so navigating away (e.g.
+    // to the camera screen) and back doesn't re-trigger the hint.
+    suspend fun consumeTutorialHint(): Boolean {
+        if (tutorialHintConsumed) return false
+        tutorialHintConsumed = true
+        return userPreferencesRepository?.showTutorialHint?.first() ?: true
+    }
 
     fun updateScannedDetection(detection: Detection) {
         scannedDetection = detection

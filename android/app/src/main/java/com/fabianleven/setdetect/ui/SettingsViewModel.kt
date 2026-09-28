@@ -18,12 +18,12 @@ class SettingsViewModel(
     private val userPreferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
 
-    val showTutorialOnStartup: StateFlow<Boolean> = userPreferencesRepository.showTutorialOnStartup
+    val showTutorialHint: StateFlow<Boolean> = userPreferencesRepository.showTutorialHint
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
-    fun setShowTutorialOnStartup(show: Boolean) {
+    fun setShowTutorialHint(show: Boolean) {
         viewModelScope.launch {
-            userPreferencesRepository.setShowTutorialOnStartup(show)
+            userPreferencesRepository.setShowTutorialHint(show)
         }
     }
 

@@ -50,7 +50,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory)
 ) {
-    val showTutorialOnStartup by viewModel.showTutorialOnStartup.collectAsState()
+    val showTutorialHint by viewModel.showTutorialHint.collectAsState()
 
     // AppCompatDelegate is the source of truth for the chosen locale (it
     // persists itself); selecting a new one triggers an activity recreation,
@@ -90,14 +90,14 @@ fun SettingsScreen(
     ) { innerPadding ->
         Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_show_tutorial_on_startup)) },
+                headlineContent = { Text(stringResource(R.string.settings_show_tutorial_hint)) },
                 trailingContent = {
                     Switch(
-                        checked = showTutorialOnStartup,
-                        onCheckedChange = { viewModel.setShowTutorialOnStartup(it) }
+                        checked = showTutorialHint,
+                        onCheckedChange = { viewModel.setShowTutorialHint(it) }
                     )
                 },
-                modifier = Modifier.clickable { viewModel.setShowTutorialOnStartup(!showTutorialOnStartup) }
+                modifier = Modifier.clickable { viewModel.setShowTutorialHint(!showTutorialHint) }
             )
 
             HorizontalDivider()

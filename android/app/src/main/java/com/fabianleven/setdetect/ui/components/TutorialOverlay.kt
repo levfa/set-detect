@@ -6,6 +6,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,7 +26,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.fabianleven.setdetect.R
 
@@ -34,8 +38,7 @@ enum class TutorialStep(
     SCAN_APPEARS(R.string.tut_title, R.string.tut_scan_appears),
     SETS_AND_REVEAL(R.string.tut_title, R.string.tut_sets_and_reveal),
     SCAN_EDIT(R.string.tut_title, R.string.tut_scan_edit),
-    MANUAL_SELECTION(R.string.tut_title, R.string.selection_manual_empty),
-    RE_RUN_TUTORIAL(R.string.tut_title, R.string.tut_re_run_tutorial)
+    MANUAL_SELECTION(R.string.tut_title, R.string.selection_manual_empty)
 }
 
 @Composable
@@ -50,12 +53,7 @@ fun TutorialOverlay(
     onSkip: () -> Unit,
     isFirstStep: Boolean,
     isLastStep: Boolean,
-    isDemoPlaying: Boolean = false,
-    forceCenter: Boolean = false,
-    // Non-null only on the last step, where it shows a checkbox for turning
-    // off "show tutorial on startup". Null hides the checkbox.
-    startupToggleChecked: Boolean? = null,
-    onStartupToggleChanged: (Boolean) -> Unit = {}
+    isDemoPlaying: Boolean = false
 ) {
     BoxWithConstraints(
         modifier = Modifier
@@ -84,7 +82,7 @@ fun TutorialOverlay(
         // target, the target is too large, there are multiple targets, or the
         // step forces centering.
         val cardAlignment = when {
-            forceCenter || !hasTarget || isLargeArea || isMultiTarget -> Alignment.Center
+            !hasTarget || isLargeArea || isMultiTarget -> Alignment.Center
             validRects[0].center.y < screenHeightPx / 2f -> Alignment.BottomCenter
             else -> Alignment.TopCenter
         }
@@ -213,24 +211,6 @@ fun TutorialOverlay(
                     textAlign = TextAlign.Center
                 )
 
-                if (startupToggleChecked != null) {
-                    Spacer(Modifier.height(12.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) { onStartupToggleChanged(!startupToggleChecked) }
-                    ) {
-                        Checkbox(checked = startupToggleChecked, onCheckedChange = onStartupToggleChanged)
-                        Text(
-                            text = stringResource(R.string.settings_show_tutorial_on_startup),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-
                 Spacer(Modifier.height(20.dp))
 
                 Row(
@@ -238,48 +218,34 @@ fun TutorialOverlay(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Capped (not forced) at half the row each, so a long Skip
-                    // label can't starve Back/Next down to a near-zero width
-                    // on narrow screens or large font scales.
+                    // Icon-only throughout now, for parallelism: a close mark
+                    // reads as "quit" as clearly as the word did, without any
+                    // translation-length concern.
                     if (isLastStep) {
                         Spacer(Modifier.width(1.dp))
                     } else {
-                        TextButton(
-                            onClick = onSkip,
-                            enabled = !isDemoPlaying,
-                            modifier = Modifier.weight(1f, fill = false)
-                        ) {
-                            Text(
-                                stringResource(R.string.tut_skip),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                        IconButton(onClick = onSkip, enabled = !isDemoPlaying) {
+                            Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.tut_skip))
                         }
                     }
-                    Row(modifier = Modifier.weight(1f, fill = false)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         if (!isFirstStep) {
-                            TextButton(
-                                onClick = onBack,
-                                enabled = !isDemoPlaying
-                            ) {
-                                Text(
-                                    stringResource(R.string.tut_back),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                            IconButton(onClick = onBack, enabled = !isDemoPlaying) {
+                                Icon(
+                                    Icons.AutoMirrored.Rounded.ArrowBack,
+                                    contentDescription = stringResource(R.string.back)
                                 )
                             }
-                            Spacer(Modifier.width(8.dp))
                         }
 
-                        Button(
-                            onClick = onNext,
-                            enabled = !isDemoPlaying
-                        ) {
-                            Text(
-                                text = if (isLastStep) stringResource(R.string.tut_finish)
-                                else stringResource(R.string.tut_next),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                        // Filled, not plain: keeps the same primary-action
+                        // visual weight the old labeled Button had.
+                        FilledIconButton(onClick = onNext, enabled = !isDemoPlaying) {
+                            Icon(
+                                imageVector = if (isLastStep) Icons.Rounded.Check else Icons.AutoMirrored.Rounded.ArrowForward,
+                                contentDescription = stringResource(
+                                    if (isLastStep) R.string.tut_finish else R.string.tut_next
+                                )
                             )
                         }
                     }

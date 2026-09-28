@@ -44,7 +44,6 @@ class TutorialTargets {
     var revealSetsButton by mutableStateOf(Rect.Zero)
     var fab by mutableStateOf(Rect.Zero)
     var editFab by mutableStateOf(Rect.Zero)
-    var helpButton by mutableStateOf(Rect.Zero)
 
     // Position of the card the arrangement highlights for the tutorial, where
     // the Scan Edit demo draws its tap-ripple.
@@ -80,7 +79,6 @@ fun TutorialLayer(
         TutorialStep.SETS_AND_REVEAL -> listOf(targets.selectionInfo, targets.revealSetsButton)
         TutorialStep.SCAN_EDIT -> listOf(targets.arrangement)
         TutorialStep.MANUAL_SELECTION -> listOf(targets.manualSelection, targets.editFab)
-        TutorialStep.RE_RUN_TUTORIAL -> listOf(targets.helpButton)
     }
 
     val description = when (tutorial.currentStep) {
@@ -102,11 +100,7 @@ fun TutorialLayer(
         onSkip = { tutorial.skip() },
         isFirstStep = tutorial.currentStep == TutorialStep.entries.first(),
         isLastStep = tutorial.currentStep == TutorialStep.entries.last(),
-        isDemoPlaying = tutorial.isDemoPlaying,
-        // The help icon sits at the top edge, so center the card.
-        forceCenter = tutorial.currentStep == TutorialStep.RE_RUN_TUTORIAL,
-        startupToggleChecked = if (tutorial.currentStep == TutorialStep.RE_RUN_TUTORIAL) tutorial.showOnStartup else null,
-        onStartupToggleChanged = { tutorial.updateShowOnStartup(it) }
+        isDemoPlaying = tutorial.isDemoPlaying
     )
 }
 

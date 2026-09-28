@@ -6,9 +6,10 @@
     <string name="help">Ayuda</string>
     <string name="settings">Ajustes</string>
     <string name="close">Cerrar</string>
+    <string name="tutorial_hint">Tutorial</string>
 
     <!-- Settings Screen -->
-    <string name="settings_show_tutorial_on_startup">Mostrar tutorial al iniciar</string>
+    <string name="settings_show_tutorial_hint">Mostrar aviso de tutorial al iniciar</string>
     <string name="settings_language">Idioma</string>
     <string name="settings_language_system_default">Predeterminado del sistema</string>
     <string name="settings_language_english">English</string>
@@ -83,9 +84,7 @@
     <string name="tut_sets_and_reveal">En la barra superior puedes ver el número de cartas y cuántos sets contienen. Para ver los sets, toca «%s».</string>
     <string name="tut_scan_edit">Toca cualquier carta para descartarla o cambiarla.</string>
     <string name="tut_demo_playing">Demostración en curso…</string>
-    <string name="tut_re_run_tutorial">Toca el botón de ayuda para abrir este tutorial.</string>
     <string name="tut_next">Siguiente</string>
-    <string name="tut_back">Atrás</string>
-    <string name="tut_skip">Omitir tutorial</string>
+    <string name="tut_skip">Omitir</string>
     <string name="tut_finish">Finalizar</string>
 </resources>

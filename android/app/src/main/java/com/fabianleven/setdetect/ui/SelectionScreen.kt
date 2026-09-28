@@ -1,5 +1,6 @@
 package com.fabianleven.setdetect.ui
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -11,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.pluralStringResource
@@ -22,6 +24,13 @@ import com.fabianleven.setdetect.R
 import com.fabianleven.setdetect.domain.SetCard
 import com.fabianleven.setdetect.domain.findSets
 import com.fabianleven.setdetect.ui.components.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+// Material3's own non-persistent tooltip auto-dismisses after a fixed,
+// non-configurable BasicTooltipDefaults.TooltipDuration (1500ms), so a
+// longer visible time is driven manually via an isPersistent state instead.
+private const val TutorialHintDurationMillis = 3000L
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,13 +91,59 @@ fun SelectionScreen(
                         }
                     },
                     actions = {
-                        IconButton(
-                            onClick = { viewModel.tutorial.start() },
-                            modifier = Modifier.onGloballyPositioned {
-                                targets.helpButton = it.boundsInWindow()
+                        // isPersistent, so show() doesn't auto-dismiss after
+                        // Material's default 1.5s; dismiss() is called
+                        // manually below once TutorialHintDurationMillis
+                        // elapses instead.
+                        val tutorialTooltipState = rememberTooltipState(isPersistent = true)
+                        var hintEmphasized by remember { mutableStateOf(false) }
+                        LaunchedEffect(Unit) {
+                            if (viewModel.consumeTutorialHint()) {
+                                hintEmphasized = true
+                                launch { tutorialTooltipState.show() }
+                                delay(TutorialHintDurationMillis)
+                                tutorialTooltipState.dismiss()
+                                hintEmphasized = false
                             }
+                        }
+                        // Purely informational: only the icon itself starts the
+                        // tutorial, the tooltip just points at it.
+                        TooltipBox(
+                            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Below),
+                            tooltip = {
+                                PlainTooltip(caretShape = TooltipDefaults.caretShape()) {
+                                    Text(stringResource(R.string.tutorial_hint))
+                                }
+                            },
+                            state = tutorialTooltipState
                         ) {
-                            Icon(Icons.AutoMirrored.Rounded.HelpOutline, contentDescription = stringResource(R.string.help))
+                            IconButton(onClick = { viewModel.tutorial.start() }) {
+                                if (hintEmphasized) {
+                                    // Same pulsing pattern the tutorial's own
+                                    // spotlight border uses (TutorialOverlay.kt).
+                                    val pulseTransition = rememberInfiniteTransition(label = "helpIconPulse")
+                                    val pulseScale by pulseTransition.animateFloat(
+                                        initialValue = 1f,
+                                        targetValue = 1.25f,
+                                        animationSpec = infiniteRepeatable(
+                                            animation = tween(500, easing = LinearOutSlowInEasing),
+                                            repeatMode = RepeatMode.Reverse
+                                        ),
+                                        label = "scale"
+                                    )
+                                    Icon(
+                                        Icons.AutoMirrored.Rounded.HelpOutline,
+                                        contentDescription = stringResource(R.string.help),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.graphicsLayer {
+                                            scaleX = pulseScale
+                                            scaleY = pulseScale
+                                        }
+                                    )
+                                } else {
+                                    Icon(Icons.AutoMirrored.Rounded.HelpOutline, contentDescription = stringResource(R.string.help))
+                                }
+                            }
                         }
                     }
                 )
