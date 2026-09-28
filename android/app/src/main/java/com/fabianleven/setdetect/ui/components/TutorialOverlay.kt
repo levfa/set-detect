@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.fabianleven.setdetect.R
 
@@ -237,23 +238,35 @@ fun TutorialOverlay(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Capped (not forced) at half the row each, so a long Skip
+                    // label can't starve Back/Next down to a near-zero width
+                    // on narrow screens or large font scales.
                     if (isLastStep) {
                         Spacer(Modifier.width(1.dp))
                     } else {
                         TextButton(
                             onClick = onSkip,
-                            enabled = !isDemoPlaying
+                            enabled = !isDemoPlaying,
+                            modifier = Modifier.weight(1f, fill = false)
                         ) {
-                            Text(stringResource(R.string.tut_skip))
+                            Text(
+                                stringResource(R.string.tut_skip),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
-                    Row {
+                    Row(modifier = Modifier.weight(1f, fill = false)) {
                         if (!isFirstStep) {
                             TextButton(
                                 onClick = onBack,
                                 enabled = !isDemoPlaying
                             ) {
-                                Text(stringResource(R.string.tut_back))
+                                Text(
+                                    stringResource(R.string.tut_back),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
                             Spacer(Modifier.width(8.dp))
                         }
@@ -264,7 +277,9 @@ fun TutorialOverlay(
                         ) {
                             Text(
                                 text = if (isLastStep) stringResource(R.string.tut_finish)
-                                else stringResource(R.string.tut_next)
+                                else stringResource(R.string.tut_next),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
