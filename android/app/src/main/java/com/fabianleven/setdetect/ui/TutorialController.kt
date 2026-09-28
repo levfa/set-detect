@@ -51,6 +51,7 @@ class TutorialController(
     private var savedSelection: List<SetCard> = emptyList()
     private var savedChoices: Map<Int, SlotChoice> = emptyMap()
     private var savedDetection: Detection? = null
+    private var savedManualHeightDp: Float = DefaultManualHeight.value
 
     private var animationJob: Job? = null
 
@@ -69,10 +70,14 @@ class TutorialController(
         savedSelection = viewModel.manualCards.toList()
         savedChoices = viewModel.slotChoices.toMap()
         savedDetection = viewModel.scannedDetection
+        savedManualHeightDp = viewModel.manualHeightDp
         // Start with no scan; the example scan appears once the tutorial
         // explains scanning.
         viewModel.manualCards.clear()
         viewModel.scannedDetection = null
+        // Reset the divider to a demo-friendly split so spotlighted steps
+        // aren't cramped by whatever the user last dragged it to.
+        viewModel.manualHeightDp = DefaultManualHeight.value
         currentStep = TutorialStep.INTRO
         active = true
         viewModel.viewModelScope.launch {
@@ -131,6 +136,7 @@ class TutorialController(
         viewModel.scannedDetection = savedDetection
         viewModel.slotChoices.putAll(savedChoices)
         viewModel.manualCards.addAll(savedSelection)
+        viewModel.manualHeightDp = savedManualHeightDp
         // Leaves the show-on-startup preference alone; only the checkbox or
         // Settings switch changes it.
     }

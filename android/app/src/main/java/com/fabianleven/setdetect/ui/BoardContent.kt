@@ -13,11 +13,9 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,9 +37,14 @@ import com.fabianleven.setdetect.ui.components.TutorialTargets
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private val DefaultManualHeight = 150.dp
+// Not private: SelectionViewModel and TutorialController also reference it,
+// as the divider's default/demo height.
+val DefaultManualHeight = 150.dp
 private val MinManualHeight = 96.dp
-private val MinScanAreaHeight = 160.dp
+// Keeps the scanned board's cards at a legible, tappable size even when the
+// divider is dragged all the way down (ArrangementView scales the whole
+// arrangement to fit whatever height it's given).
+private val MinScanAreaHeight = 260.dp
 
 // The manual selection on top and the scan arrangement below, split by a draggable divider.
 @Composable
@@ -61,11 +64,7 @@ fun BoardContent(
     var pickerSlot by remember(detection) { mutableStateOf<Int?>(null) }
     val scope = rememberCoroutineScope()
 
-    var manualHeightDp by rememberSaveable { mutableFloatStateOf(DefaultManualHeight.value) }
     val density = LocalDensity.current
-    val dragState = rememberDraggableState { delta ->
-        manualHeightDp += delta / density.density
-    }
 
     pickerSlot?.let { slot ->
         matchedCards.getOrNull(slot)?.let { original ->
@@ -87,7 +86,15 @@ fun BoardContent(
 
     BoxWithConstraints(modifier = modifier) {
         val maxManualHeight = (maxHeight - MinScanAreaHeight).coerceAtLeast(MinManualHeight)
-        val manualHeight = manualHeightDp.dp.coerceIn(MinManualHeight, maxManualHeight)
+        val manualHeight = viewModel.manualHeightDp.dp.coerceIn(MinManualHeight, maxManualHeight)
+        // Clamped immediately, not just at render, so a drag past the visual
+        // limits can't leave the stored value stranded outside them (which
+        // would otherwise cause a jump the next time maxManualHeight shrinks,
+        // e.g. on rotation).
+        val dragState = rememberDraggableState { delta ->
+            viewModel.manualHeightDp = (viewModel.manualHeightDp + delta / density.density)
+                .coerceIn(MinManualHeight.value, maxManualHeight.value)
+        }
 
         Column(modifier = Modifier.fillMaxSize()) {
             SectionHeader(

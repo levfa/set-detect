@@ -1,6 +1,7 @@
 package com.fabianleven.setdetect.ui
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -25,6 +26,12 @@ class SelectionViewModel(
 
     // Per scanned card (indexed like matchedCards); absent means Original.
     val slotChoices = mutableStateMapOf<Int, SlotChoice>()
+
+    // Height of the manual-selection area, split from the scan arrangement by
+    // a draggable divider. Lives here rather than as local Compose state in
+    // BoardContent so the tutorial can reset it to a demo-friendly value
+    // while playing and restore the user's chosen height afterward.
+    var manualHeightDp by mutableFloatStateOf(DefaultManualHeight.value)
 
     private var detectionState by mutableStateOf<Detection?>(null)
 
