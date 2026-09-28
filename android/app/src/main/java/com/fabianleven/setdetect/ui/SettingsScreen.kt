@@ -13,6 +13,7 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -23,6 +24,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.os.LocaleListCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fabianleven.setdetect.R
 
@@ -50,11 +54,25 @@ fun SettingsScreen(
 
     // AppCompatDelegate is the source of truth for the chosen locale (it
     // persists itself); selecting a new one triggers an activity recreation,
-    // so there's no need to keep this in sync beyond the initial read.
-    var selectedLanguageTag by remember {
-        mutableStateOf(AppCompatDelegate.getApplicationLocales().let { if (it.isEmpty) null else it[0]?.language })
-    }
+    // which re-reads it below. Also re-read on every resume, in case the
+    // locale changed without a recreate (e.g. via the system's per-app
+    // language screen while this screen stayed alive in the background).
+    fun readSelectedLanguageTag() =
+        AppCompatDelegate.getApplicationLocales().let { if (it.isEmpty) null else it[0]?.language }
+
+    var selectedLanguageTag by remember { mutableStateOf(readSelectedLanguageTag()) }
     var showLanguageDialog by remember { mutableStateOf(false) }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                selectedLanguageTag = readSelectedLanguageTag()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     val selectedLanguageLabelRes = languageOptions.first { it.tag == selectedLanguageTag }.labelRes
 
     Scaffold(
