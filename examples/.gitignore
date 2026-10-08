@@ -1,0 +1,4 @@
+data/img-real-card-cutouts/masked/
+data/img-synth-boards-*/
+data/huggingface/
+models/

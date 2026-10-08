@@ -359,7 +359,8 @@ def train(
         epochs=epochs,
         imgsz=imgsz,
         device=device,
-        project=str(project) if project is not None else None,
+        # ultralytics nests a relative project under its settings runs_dir
+        project=str(pl.Path(project).resolve()) if project is not None else None,
         name=name,
         seed=seed,
         trainer=SyntheticCornerTrainer,

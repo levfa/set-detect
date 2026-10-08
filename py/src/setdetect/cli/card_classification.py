@@ -5,10 +5,10 @@ import pathlib as pl
 import cv2
 import numpy as np
 
+from setdetect.data.texturecan import DEFAULT_MANIFEST_NAME
 from setdetect.model import versioning
 from setdetect.synth_data.card_synth import make_card_augmenter
 from setdetect.synth_data.effects import Effects, make_effects
-from setdetect.ui.data_args import add_img_root_arg
 from setdetect.ui.synth_args import (
     add_blur_args,
     add_card_aug_args,
@@ -25,6 +25,36 @@ from setdetect.ui.synth_args import (
     shadow_from_args,
     spec_from_args,
 )
+
+
+def _add_labeled_root_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "-d",
+        "--data-root",
+        type=pl.Path,
+        required=True,
+        help="Directory of the labeled card dataset (raw/ + labels/card-classes.jsonl) written by "
+        "'synth-gen' and read by 'train' (validation) and 'quantize' (calibration).",
+    )
+
+
+def _add_textures_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--tex-root",
+        type=pl.Path,
+        required=True,
+        help="Root of the texture dataset (e.g. your local huggingface/nyuuzyou/texturecan mirror)",
+    )
+    parser.add_argument(
+        "--tex-manifest",
+        type=pl.Path,
+        default=None,
+        help=f"Background manifest selecting the textures (default: <tex-root>/{DEFAULT_MANIFEST_NAME})",
+    )
+
+
+def _tex_manifest(args: argparse.Namespace) -> pl.Path:
+    return args.tex_manifest or args.tex_root / DEFAULT_MANIFEST_NAME
 
 
 def _add_runs_root_arg(parser: argparse.ArgumentParser) -> None:
@@ -88,6 +118,7 @@ def _train(args: argparse.Namespace) -> None:
         num_workers=args.num_workers,
         pretrained=not args.no_pretrained,
         effects=_effects_from_args(args),
+        tex_manifest=_tex_manifest(args),
     )
     versioning.write_run_metadata(
         out_dir,
@@ -102,7 +133,7 @@ def _train(args: argparse.Namespace) -> None:
             "pretrained": not args.no_pretrained,
         },
     )
-    print(f"\nrun 'set-card-classification promote {version}' to make this the default")
+    print(f"\nrun 'set-card-classification promote --version {version}' to make this the default")
 
 
 def _show_batch(args: argparse.Namespace) -> None:
@@ -126,6 +157,7 @@ def _show_batch(args: argparse.Namespace) -> None:
         boards_per_epoch=args.boards_per_epoch,
         effects=_effects_from_args(args),
         seed=args.seed,
+        tex_manifest=_tex_manifest(args),
     )
     ds.set_epoch(0)
 
@@ -174,6 +206,22 @@ def _show_batch(args: argparse.Namespace) -> None:
     cv2.destroyAllWindows()
 
 
+def _synth_gen(args: argparse.Namespace) -> None:
+    from setdetect.model.card_classification import generate_dataset
+
+    print("generating the synthetic labeled validation/calibration set ...")
+    n_labels = generate_dataset(
+        cards_root=args.cards_root,
+        tex_root=args.tex_root,
+        out_root=args.data_root,
+        num_val=args.num_val,
+        seed=args.seed,
+        effects=_effects_from_args(args),
+        tex_manifest=_tex_manifest(args),
+    )
+    print(f"{args.num_val} boards, {n_labels} labeled cards written to {args.data_root}")
+
+
 def _quantize(args: argparse.Namespace) -> None:
     from setdetect.model.card_classification import quantize_onnx
 
@@ -199,7 +247,7 @@ def _export(args: argparse.Namespace) -> None:
         raise SystemExit(f"no checkpoint at {weights}")
     out: pl.Path = args.out or (weights.parent / "onnx" / "model.onnx")
     out.parent.mkdir(parents=True, exist_ok=True)
-    export_onnx(weights, out, opset=args.opset, dynamic_batch=args.dynamic_batch)
+    export_onnx(weights, out, opset=args.opset, dynamic_batch=not args.static_batch)
     size_mb = out.stat().st_size / (1024 * 1024)
     print(f"exported to {out}  ({size_mb:.1f} MB, opset {args.opset})")
 
@@ -308,8 +356,8 @@ def _prepare_github(args: argparse.Namespace) -> None:
 
 
 def _promote(args: argparse.Namespace) -> None:
-    versioning.promote(args.runs_root, args.version)
-    print(f"promoted {args.version} -> {args.runs_root}/current")
+    version = versioning.promote(args.runs_root, args.version)
+    print(f"promoted {version} -> {args.runs_root}/current")
 
 
 def _list_versions(args: argparse.Namespace) -> None:
@@ -324,11 +372,27 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="set-card-classification")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    sg = subparsers.add_parser(
+        "synth-gen",
+        help="Generate the synthetic labeled set (raw/ + labels/) used by 'train' and 'quantize'",
+    )
+    _add_labeled_root_arg(sg)
+    sg.add_argument(
+        "--cards-root",
+        type=pl.Path,
+        required=True,
+        help="Root of the masked card-cutout dataset (raw/ + masked/).",
+    )
+    _add_textures_args(sg)
+    sg.add_argument("--num-val", type=int, default=50, help="Number of boards to generate (default: %(default)s)")
+    sg.add_argument("--seed", type=int, default=0, help="Base random seed for generation (default: %(default)s)")
+    _add_synth_effect_args(sg)
+
     tr = subparsers.add_parser(
         "train",
-        help="Train the card classifier on synthetic data, validate on labeled photos",
+        help="Train the card classifier on synthetic data, validate on a labeled dataset",
     )
-    add_img_root_arg(tr)
+    _add_labeled_root_arg(tr)
     _add_runs_root_arg(tr)
     tr.add_argument(
         "--cards-root",
@@ -336,12 +400,7 @@ def main(argv: list[str] | None = None) -> None:
         required=True,
         help="Root of the masked card-cutout dataset (raw/ + masked/).",
     )
-    tr.add_argument(
-        "--tex-root",
-        type=pl.Path,
-        required=True,
-        help="Root of the texture dataset (e.g. your local huggingface/nyuuzyou/texturecan mirror)",
-    )
+    _add_textures_args(tr)
     tr.add_argument("--epochs", type=int, default=50, help="Training epochs (default: %(default)s)")
     tr.add_argument("--batch-size", type=int, default=4, help="Batch size (default: %(default)s)")
     tr.add_argument("--lr", type=float, default=1e-4, help="Learning rate (default: %(default)s)")
@@ -377,12 +436,7 @@ def main(argv: list[str] | None = None) -> None:
         required=True,
         help="Root of the masked card-cutout dataset (raw/ + masked/).",
     )
-    sb.add_argument(
-        "--tex-root",
-        type=pl.Path,
-        required=True,
-        help="Root of the texture dataset (e.g. your local huggingface/nyuuzyou/texturecan mirror)",
-    )
+    _add_textures_args(sb)
     sb.add_argument(
         "--boards-per-epoch",
         type=int,
@@ -416,9 +470,9 @@ def main(argv: list[str] | None = None) -> None:
         help="ONNX opset version (default: %(default)s)",
     )
     ex.add_argument(
-        "--dynamic-batch",
+        "--static-batch",
         action="store_true",
-        help="Allow dynamic batch size in the exported model",
+        help="Fix the batch size to 1 in the exported model (default: dynamic batch)",
     )
 
     qu = subparsers.add_parser(
@@ -438,7 +492,7 @@ def main(argv: list[str] | None = None) -> None:
         default=None,
         help="Output quantized .onnx path (default: same dir → model_quantized.onnx)",
     )
-    add_img_root_arg(qu)
+    _add_labeled_root_arg(qu)
     qu.add_argument(
         "--num-samples",
         type=int,
@@ -450,7 +504,12 @@ def main(argv: list[str] | None = None) -> None:
         "promote",
         help="Mark a trained run version as the 'current' default for inference/export",
     )
-    pr.add_argument("version", type=str, help="Version name under --runs-root to promote")
+    pr.add_argument(
+        "--version",
+        type=str,
+        default="latest",
+        help="Version name under --runs-root to promote (default: %(default)s)",
+    )
     _add_runs_root_arg(pr)
 
     lv = subparsers.add_parser(
@@ -498,7 +557,9 @@ def main(argv: list[str] | None = None) -> None:
     )
 
     args = parser.parse_args(argv)
-    if args.command == "train":
+    if args.command == "synth-gen":
+        _synth_gen(args)
+    elif args.command == "train":
         _train(args)
     elif args.command == "show-batch":
         _show_batch(args)

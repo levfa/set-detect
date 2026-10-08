@@ -34,7 +34,7 @@ dev = [
 
 [project.scripts]
 set-card-cutouts = "setdetect.cli.card_cutouts_data:main"
-texturecan = "setdetect.cli.backgrounds_data:main"
+set-backgrounds-data = "setdetect.cli.backgrounds_data:main"
 set-board-synth = "setdetect.cli.board_synth:main"
 set-card-synth = "setdetect.cli.card_synth:main"
 set-card-corners = "setdetect.cli.card_corners:main"

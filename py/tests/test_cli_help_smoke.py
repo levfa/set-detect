@@ -13,6 +13,7 @@ CLI_HELP_CASES = [
     ("setdetect.cli.card_corners", ["list-versions", "--help"]),
     ("setdetect.cli.card_classification", ["--help"]),
     ("setdetect.cli.card_classification", ["list-versions", "--help"]),
+    ("setdetect.cli.card_classification", ["synth-gen", "--help"]),
     ("setdetect.cli.card_class_data", ["--help"]),
     ("setdetect.cli.card_detection", ["--help"]),
     ("setdetect.cli.card_detection", ["profile-arrangement-estimation", "--help"]),

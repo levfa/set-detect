@@ -327,7 +327,7 @@ def _synth_train(args: argparse.Namespace) -> None:
     run_dir = best.parent.parent
     _write_run_metadata(run_dir, args, model, name)
     print(f"training finished, best weights at {best}")
-    print(f"run 'set-card-corners promote {name}' to make this the default")
+    print(f"run 'set-card-corners promote --version {name}' to make this the default")
 
 
 def _export(args: argparse.Namespace) -> None:
@@ -425,8 +425,8 @@ def _prepare_github(args: argparse.Namespace) -> None:
 
 
 def _promote(args: argparse.Namespace) -> None:
-    versioning.promote(pl.Path(args.runs_root), args.version)
-    print(f"promoted {args.version} -> {args.runs_root}/current")
+    version = versioning.promote(pl.Path(args.runs_root), args.version)
+    print(f"promoted {version} -> {args.runs_root}/current")
 
 
 def _list_versions(args: argparse.Namespace) -> None:
@@ -557,7 +557,12 @@ def main(argv: list[str] | None = None) -> None:
         "promote",
         help="Mark a trained run version as the 'current' default for inference/export",
     )
-    promote_parser.add_argument("version", type=str, help="Version name under --runs-root to promote")
+    promote_parser.add_argument(
+        "--version",
+        type=str,
+        default="latest",
+        help="Version name under --runs-root to promote (default: %(default)s)",
+    )
     _add_runs_root_arg(promote_parser)
 
     list_parser = subparsers.add_parser(

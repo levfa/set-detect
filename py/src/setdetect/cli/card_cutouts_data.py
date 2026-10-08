@@ -15,7 +15,7 @@ def _add_data_root_arg(parser: argparse.ArgumentParser) -> None:
         "--data-root",
         type=pl.Path,
         required=True,
-        help="Directory containing the card-cutout dataset (raw/ + masked/).",
+        help="Directory containing the card-cutout dataset (raw/).",
     )
 
 

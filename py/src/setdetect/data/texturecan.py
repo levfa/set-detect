@@ -3,6 +3,7 @@ import pathlib as pl
 import re
 import typing as tp
 from dataclasses import dataclass
+import tarfile
 
 import cv2
 import huggingface_hub as hf
@@ -27,6 +28,12 @@ def download(local_dir: pl.Path, revision: str = "main") -> None:
         revision=revision,
         local_dir=local_dir,
     )
+    for tar_path in local_dir.rglob("*.tar"):
+        extract_dir = tar_path.parent / tar_path.stem
+        print(f"Extracting {tar_path} -> {extract_dir}")
+        extract_dir.mkdir(parents=True, exist_ok=True)
+        with tarfile.open(tar_path, "r") as tar:
+            tar.extractall(extract_dir)
 
 
 def _scan_images(root: pl.Path) -> list[pl.Path]:

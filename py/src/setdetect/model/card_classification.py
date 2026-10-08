@@ -13,6 +13,7 @@ from setdetect.data.card_cutouts import MaskedCardDataset
 from setdetect.data.texturecan import TextureDataset
 from setdetect.synth_data.card_synth import (
     KIND_CARD,
+    BoardQuad,
     CardAugConfig,
     ExtractedCard,
     add_false_positive_quads,
@@ -126,6 +127,81 @@ def _default_effects() -> Effects:
     return dataclasses.replace(make_effects(), augmenter=make_card_augmenter(CardAugConfig()))
 
 
+def _synth_board(
+    cards: MaskedCardDataset,
+    tex: TextureDataset,
+    effects: Effects,
+    rng: np.random.Generator,
+) -> tuple[np.ndarray, list[BoardQuad]]:
+    """One synthetic board with real, fake and false-positive quads, jittered like detector output."""
+    img, quads = make_board(
+        cards,
+        tex.random_texture,
+        num_cards=8,
+        num_fake=4,
+        effects=effects,
+        min_vis=0.7,
+        rng=rng,
+    )
+    add_false_positive_quads(quads, num_rot=3, num_edge=3, rng=rng)
+    jitter_quads(quads, frac=0.06, rng=rng)
+    return img, quads
+
+
+def generate_dataset(
+    cards_root: pl.Path,
+    tex_root: pl.Path,
+    out_root: pl.Path,
+    num_val: int = 50,
+    seed: int = 0,
+    effects: Effects | None = None,
+    tex_manifest: pl.Path | None = None,
+) -> int:
+    """Write synthetic boards to ``out_root/raw`` and their card labels to ``out_root/labels``.
+
+    Non-SET quads (fakes, false positives) are labeled "not-set", matching the
+    ``OTHER`` targets used in training. Returns the number of labeled cards.
+    """
+    cards = MaskedCardDataset(cards_root)
+    tex = TextureDataset(tex_root, tex_manifest)
+    effects = effects if effects is not None else _default_effects()
+
+    out_root = pl.Path(out_root)
+    raw_dir = out_root / "raw"
+    if raw_dir.is_dir():
+        for path in raw_dir.iterdir():
+            path.unlink()
+    raw_dir.mkdir(parents=True, exist_ok=True)
+
+    labels: img_dir.Labels = {}
+    for i in range(num_val):
+        img, quads = _synth_board(cards, tex, effects, np.random.default_rng(seed + i))
+        rel_path = f"raw/img_{i:06d}.png"
+        cv2.imwrite(str(out_root / rel_path), img)
+        h, w = img.shape[:2]
+        for bq in quads:
+            count = color = shape = fill = None
+            if bq.kind == KIND_CARD and bq.label is not None:
+                count, color, shape, fill = bq.label
+            label = img_dir.CardLabel(
+                path=rel_path,
+                w=w,
+                h=h,
+                quad=bq.quad.tolist(),
+                count=count,
+                color=color,
+                fill=fill,
+                shape=shape,
+                status=img_dir.STATUS_SET if count is not None else img_dir.STATUS_NOT_SET,
+            )
+            labels[img_dir.record_key(label)] = label
+        if (i + 1) % 10 == 0 or (i + 1) == num_val:
+            print(f"  generated {i + 1}/{num_val} boards ({len(labels)} labels)")
+
+    img_dir.save_card_classes(img_dir.labels_file(out_root), labels)
+    return len(labels)
+
+
 class SyntheticCardDataset(torch.utils.data.Dataset):
     """Generate board images on the fly for classifier training.
 
@@ -140,9 +216,10 @@ class SyntheticCardDataset(torch.utils.data.Dataset):
         boards_per_epoch: int = 256,
         effects: Effects | None = None,
         seed: int = 0,
+        tex_manifest: pl.Path | None = None,
     ) -> None:
         self.cards = MaskedCardDataset(cards_root)
-        self.tex = TextureDataset(tex_root)
+        self.tex = TextureDataset(tex_root, tex_manifest)
         self.boards_per_epoch = boards_per_epoch
         self.effects = effects if effects is not None else _default_effects()
         self.seed = seed
@@ -158,17 +235,7 @@ class SyntheticCardDataset(torch.utils.data.Dataset):
         board_seed = self.seed + self._epoch * self.boards_per_epoch + idx
         rng = np.random.default_rng(board_seed)
 
-        img, quads = make_board(
-            self.cards,
-            self.tex.random_texture,
-            num_cards=8,
-            num_fake=4,
-            effects=self.effects,
-            min_vis=0.7,
-            rng=rng,
-        )
-        add_false_positive_quads(quads, num_rot=3, num_edge=3, rng=rng)
-        jitter_quads(quads, frac=0.06, rng=rng)
+        img, quads = _synth_board(self.cards, self.tex, self.effects, rng)
         crops = extract_cards(img, quads, CARD_SIZE)
 
         images, count, color, fill, shape = [], [], [], [], []
@@ -300,6 +367,7 @@ def train(  # noqa: A001
     num_workers: int,
     pretrained: bool,
     effects: Effects | None = None,
+    tex_manifest: pl.Path | None = None,
 ) -> None:
     if device is None:
         dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -313,6 +381,7 @@ def train(  # noqa: A001
         boards_per_epoch=boards_per_epoch,
         effects=effects,
         seed=seed,
+        tex_manifest=tex_manifest,
     )
     val_ds = CardClassDataset(data_root)
     if len(val_ds) < 2:
@@ -453,7 +522,7 @@ def export_onnx(
     weights_path: pl.Path,
     out_path: pl.Path,
     opset: int = 18,
-    dynamic_batch: bool = False,
+    dynamic_batch: bool = True,
 ) -> None:
     """Export a trained classifier to ONNX format."""
     try:
@@ -490,6 +559,7 @@ def quantize_onnx(
 ) -> None:
     """Quantize an exported ONNX classifier to int8 using calibration data."""
     import os
+    import shutil
     import subprocess
     import sys
     import tempfile
@@ -513,6 +583,9 @@ def quantize_onnx(
             tensor = self._dataset[self._idx][0]
             self._idx += 1
             return {"input": np.expand_dims(tensor.numpy(), 0)}
+
+    # the quantization below runs with the cwd switched to a temp dir
+    model_path, out_path, data_root = (pl.Path(path).resolve() for path in (model_path, out_path, data_root))
 
     ds = CardClassDataset(data_root)
     if len(ds) == 0:
@@ -555,4 +628,4 @@ def quantize_onnx(
             os.chdir(orig_cwd)
 
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        quantized.replace(out_path)
+        shutil.move(quantized, out_path)  # temp dir may be on another filesystem

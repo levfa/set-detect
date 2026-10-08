@@ -67,3 +67,16 @@ def test_write_run_metadata_writes_expected_fields(tmp_path):
     assert "git_dirty" in data
     assert data["version"] == "v01-20240101"
     assert data["family"] == "test-family"
+
+
+def test_promote_latest_picks_highest_version(tmp_path):
+    (tmp_path / "v99-20240101").mkdir()
+    (tmp_path / "v100-20240102").mkdir()
+
+    versioning.promote(tmp_path)
+    assert versioning.current_version(tmp_path) == "v100-20240102"
+
+
+def test_promote_latest_raises_without_versions(tmp_path):
+    with pytest.raises(SystemExit):
+        versioning.promote(tmp_path, "latest")

@@ -21,7 +21,7 @@ def _add_local_dir_arg(parser: argparse.ArgumentParser) -> None:
         "--local-dir",
         type=pl.Path,
         required=True,
-        help="Directory containing the dataset (e.g. your local huggingface/nyuuzyou/texturecan mirror)",
+        help="Directory containing the dataset (e.g. ~/data/huggingface/nyuuzyou/texturecan)",
     )
 
 

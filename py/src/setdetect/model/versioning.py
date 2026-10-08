@@ -41,13 +41,18 @@ def resolve_current(runs_root: pl.Path) -> pl.Path:
     if not current.exists():
         raise SystemExit(
             f"no promoted version under {runs_root} (missing '{current}'); "
-            "train a run and then promote it with the 'promote <version>' subcommand"
+            "train a run and then promote it with the 'promote' subcommand"
         )
     return current
 
 
-def promote(runs_root: pl.Path, version: str) -> None:
-    """Atomically repoint runs_root/'current' to `version` (a relative symlink)."""
+def promote(runs_root: pl.Path, version: str = "latest") -> str:
+    """Atomically repoint runs_root/'current' to `version` (a relative symlink); "latest" picks the highest vNN."""
+    if version == "latest":
+        versions = list_versions(runs_root)
+        if not versions:
+            raise SystemExit(f"no versions under {runs_root}")
+        version = max(versions, key=lambda name: int(_VERSION_RE.match(name).group(1)))  # pyright: ignore[reportOptionalMemberAccess]
     if not (runs_root / version).is_dir():
         raise SystemExit(f"no such version {version!r} under {runs_root}")
     current = runs_root / "current"
@@ -56,6 +61,7 @@ def promote(runs_root: pl.Path, version: str) -> None:
         tmp.unlink()
     tmp.symlink_to(version, target_is_directory=True)
     tmp.replace(current)
+    return version
 
 
 def _git(*args: str) -> str | None:
