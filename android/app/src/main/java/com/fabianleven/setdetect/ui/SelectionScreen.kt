@@ -49,8 +49,10 @@ fun SelectionScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
+            contentWindowInsets = WindowInsets.safeDrawing,
             topBar = {
                 CenterAlignedTopAppBar(
+                    windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
                     // Navigation icon uses the same tint (onSurfaceVariant) as the action icons.
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                         navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant

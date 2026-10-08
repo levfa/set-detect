@@ -382,7 +382,7 @@ fun CameraScanScreen(
                     titleContentColor = if (detector == null) MaterialTheme.colorScheme.onSurface else Color.White,
                     navigationIconContentColor = if (detector == null) MaterialTheme.colorScheme.onSurface else Color.White
                 ),
-                windowInsets = WindowInsets.statusBars
+                windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
             )
 
             if (detector != null) {
@@ -405,7 +405,7 @@ fun CameraScanScreen(
                                 colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))
                             )
                         )
-                        .navigationBarsPadding()
+                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))
                         .padding(horizontal = 24.dp)
                         .padding(top = 40.dp, bottom = 32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally

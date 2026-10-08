@@ -76,8 +76,10 @@ fun SettingsScreen(
     val selectedLanguageLabelRes = languageOptions.first { it.tag == selectedLanguageTag }.labelRes
 
     Scaffold(
+        contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
             CenterAlignedTopAppBar(
+                windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
                 title = { Text(stringResource(R.string.settings)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

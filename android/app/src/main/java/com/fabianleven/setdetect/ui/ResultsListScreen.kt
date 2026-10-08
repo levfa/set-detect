@@ -31,8 +31,10 @@ fun ResultsListScreen(
     val sets = remember(selectedCards) { findSets(selectedCards) }
 
     Scaffold(
+        contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
             CenterAlignedTopAppBar(
+                windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
                 title = {},
                 navigationIcon = {
                     IconButton(onClick = onBack) {

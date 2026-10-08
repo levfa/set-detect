@@ -176,12 +176,12 @@ fun TutorialOverlay(
         Card(
             modifier = Modifier
                 .align(cardAlignment)
-                // Keep clear of the status bar and gesture nav bar.
-                .windowInsetsPadding(WindowInsets.systemBars)
+                // Keep clear of the system bars and display cutouts.
+                .windowInsetsPadding(WindowInsets.safeDrawing)
                 .graphicsLayer(alpha = alpha)
                 .padding(horizontal = 24.dp, vertical = 20.dp)
-                .fillMaxWidth()
-                .widthIn(max = 400.dp),
+                .widthIn(max = 400.dp)
+                .fillMaxWidth(),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             ),
