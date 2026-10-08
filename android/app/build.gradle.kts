@@ -11,17 +11,21 @@ plugins {
 // OpenCV and Eigen are vendored/built from source (scripts/build_opencv_min.sh,
 // a CMake FetchContent) rather than resolved as Gradle dependencies, so
 // AboutLibraries can't auto-detect them; these manual entries keep their
-// attribution showing up in the Licenses screen anyway. ONNX Runtime stays a
-// normal Gradle dependency (see the `onnx` configuration below) and needs no
-// manual entry.
+// attribution showing up in the Licenses screen anyway.
 aboutLibraries {
     collect {
         configPath = file("config")
     }
 }
 
+// Shared by AGP's own CMake build and buildMinimalOpenCv: both must link against
+// the same libc++.
+// Keep in sync with the "ndk;..." install in .github/workflows/android-*.yml.
+val pinnedNdkVersion = "28.2.13676358"
+
 android {
     namespace = "com.fabianleven.setdetect"
+    ndkVersion = pinnedNdkVersion
     compileSdk {
         version = release(37)
     }
@@ -119,27 +123,19 @@ val extractNativeLibs = tasks.register<Copy>("extractNativeLibs") {
     into(layout.buildDirectory.dir("native-sdk"))
 }
 
-// Resolves the NDK directory the same way AGP does when ndkVersion isn't
-// pinned in this build (it isn't): the highest-versioned dir under
-// <sdk.dir>/ndk. Read directly from local.properties rather than through
-// AGP's variant APIs, which aren't reliably available at task-registration
-// time in Kotlin DSL.
+// Resolves <sdk.dir>/ndk/<pinnedNdkVersion>, the NDK AGP uses for the app. Read
+// directly from local.properties.
 fun resolveNdkDir(): File {
     val localProps = Properties().apply {
         rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
     }
     val sdkDir = File(localProps.getProperty("sdk.dir") ?: (System.getenv("ANDROID_HOME") ?: error("Neither sdk.dir (local.properties) nor ANDROID_HOME is set")))
-    val ndkRoot = File(sdkDir, "ndk")
-    val versions = ndkRoot.listFiles { f -> f.isDirectory } ?: error("No NDK found under $ndkRoot -- install one via the SDK Manager")
-    return versions.maxByOrNull { it.name } ?: error("No NDK found under $ndkRoot")
+    val ndkDir = File(sdkDir, "ndk/$pinnedNdkVersion")
+    if (!ndkDir.isDirectory) error("NDK $pinnedNdkVersion not found at $ndkDir -- install it via the SDK Manager")
+    return ndkDir
 }
 
-// Builds a minimal, size-scoped static OpenCV (core+imgproc+video+features:
-// the only calls corners_st.cpp/opt_flow_pyr_lk.cpp make) for each ABI
-// this app ships, via scripts/build_opencv_min.sh. Declaring outputs.dir lets
-// Gradle skip re-running once already built for a given ABI/platform; the
-// script itself also stamp-checks OpenCV's own version so a change to it (or
-// to the script's build recipe, inputs.file below) forces a rebuild.
+// Builds a minimal, size-scoped static OpenCV.
 val buildMinimalOpenCv = tasks.register<Exec>("buildMinimalOpenCv") {
     val abi = "arm64-v8a" // keep in sync with defaultConfig.ndk.abiFilters
     val platform = "android-24" // keep in sync with defaultConfig.minSdk

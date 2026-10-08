@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 # Builds a minimal, size-scoped static OpenCV for Android (core+imgproc+video+
-# features: the only calls corners_st.cpp/opt_flow_pyr_lk.cpp make are
-# cv::goodFeaturesToTrack and cv::calcOpticalFlowPyrLK/buildOpticalFlowPyramid)
-# and installs it under OUT_DIR. Invoked by the buildMinimalOpenCv Gradle task
-# in app/build.gradle.kts, gated on OUT_DIR already containing a stamp file so
-# repeated builds are a no-op until OPENCV_VERSION or this script's own recipe
-# changes.
+# features.
 #
 # Usage: build_opencv_min.sh <ABI> <ANDROID_PLATFORM> <NDK_DIR> <OUT_DIR> <WORK_DIR>
 set -euo pipefail
@@ -17,7 +12,8 @@ OUT_DIR="$4"
 WORK_DIR="$5"
 OPENCV_VERSION="5.0.0"
 
-STAMP="${OUT_DIR}/.stamp-${OPENCV_VERSION}"
+# OpenCV must be built with the same libc++ the app links against
+STAMP="${OUT_DIR}/.stamp-${OPENCV_VERSION}-ndk-$(basename "${NDK_DIR}")"
 if [[ -f "${STAMP}" ]]; then
     echo "Minimal OpenCV ${OPENCV_VERSION} for ${ABI} already built at ${OUT_DIR}, skipping."
     exit 0
@@ -80,5 +76,6 @@ for mod_include in "${SRC_DIR}"/modules/*/include; do
     cp -r "${mod_include}/." "${INCLUDE_OUT}/"
 done
 
+rm -f "${OUT_DIR}"/.stamp-*
 touch "${STAMP}"
 echo "Minimal OpenCV ${OPENCV_VERSION} for ${ABI} installed to ${OUT_DIR}"
