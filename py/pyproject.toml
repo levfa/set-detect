@@ -84,6 +84,7 @@ known-first-party = ["setdetect"]
 "src/setdetect/util/frame_grabber.py" = ["T20"]
 "src/setdetect/model/card_classification.py" = ["T20"]
 "src/setdetect/model/card_corners.py" = ["T20"]
+"src/setdetect/data/texturecan.py" = ["T20"]
 
 [tool.pyright]
 include = ["src"]

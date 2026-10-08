@@ -1,9 +1,9 @@
 import json
 import pathlib as pl
 import re
+import tarfile
 import typing as tp
 from dataclasses import dataclass
-import tarfile
 
 import cv2
 import huggingface_hub as hf
