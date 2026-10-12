@@ -40,21 +40,21 @@ def _add_labeled_root_arg(parser: argparse.ArgumentParser) -> None:
 
 def _add_textures_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
-        "--tex-root",
+        "--textures-root",
         type=pl.Path,
         required=True,
         help="Root of the texture dataset (e.g. your local huggingface/nyuuzyou/texturecan mirror)",
     )
     parser.add_argument(
-        "--tex-manifest",
+        "--textures-manifest",
         type=pl.Path,
         default=None,
-        help=f"Background manifest selecting the textures (default: <tex-root>/{DEFAULT_MANIFEST_NAME})",
+        help=f"Background manifest selecting the textures (default: <textures-root>/{DEFAULT_MANIFEST_NAME})",
     )
 
 
 def _tex_manifest(args: argparse.Namespace) -> pl.Path:
-    return args.tex_manifest or args.tex_root / DEFAULT_MANIFEST_NAME
+    return args.textures_manifest or args.textures_root / DEFAULT_MANIFEST_NAME
 
 
 def _add_runs_root_arg(parser: argparse.ArgumentParser) -> None:
@@ -107,7 +107,7 @@ def _train(args: argparse.Namespace) -> None:
     train_fn(
         data_root=args.data_root,
         cards_root=args.cards_root,
-        tex_root=args.tex_root,
+        tex_root=args.textures_root,
         epochs=args.epochs,
         batch_size=args.batch_size,
         lr=args.lr,
@@ -153,7 +153,7 @@ def _show_batch(args: argparse.Namespace) -> None:
 
     ds = SyntheticCardDataset(
         args.cards_root,
-        args.tex_root,
+        args.textures_root,
         boards_per_epoch=args.boards_per_epoch,
         effects=_effects_from_args(args),
         seed=args.seed,
@@ -212,7 +212,7 @@ def _synth_gen(args: argparse.Namespace) -> None:
     print("generating the synthetic labeled validation/calibration set ...")
     n_labels = generate_dataset(
         cards_root=args.cards_root,
-        tex_root=args.tex_root,
+        tex_root=args.textures_root,
         out_root=args.data_root,
         num_val=args.num_val,
         seed=args.seed,

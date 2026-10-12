@@ -30,7 +30,7 @@ def test_synth_gen_writes_labeled_dataset(tmp_path):
             str(data_root),
             "--cards-root",
             str(CARDS_ROOT),
-            "--tex-root",
+            "--textures-root",
             str(tex_root),
             "--num-val",
             "2",
