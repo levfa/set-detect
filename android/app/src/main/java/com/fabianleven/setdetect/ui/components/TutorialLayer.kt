@@ -70,15 +70,25 @@ fun TutorialLayer(
 
     if (!tutorial.active) return
 
-    val currentTargetRects = when (tutorial.currentStep) {
+    val currentSpotlights = when (tutorial.currentStep) {
         TutorialStep.INTRO -> emptyList()
-        TutorialStep.SCAN_CARDS -> listOf(targets.fab)
-        TutorialStep.SCAN_APPEARS -> listOf(targets.arrangement)
-        // Highlights the sets/cards indicator and the button together, since
-        // the count motivates tapping Reveal.
-        TutorialStep.SETS_AND_REVEAL -> listOf(targets.selectionInfo, targets.revealSetsButton)
-        TutorialStep.SCAN_EDIT -> listOf(targets.arrangement)
-        TutorialStep.MANUAL_SELECTION -> listOf(targets.manualSelection, targets.editFab)
+        TutorialStep.SCAN_CARDS -> listOf(
+            TutorialSpotlight(targets.fab, R.string.tut_tip_scan_button)
+        )
+        TutorialStep.SCAN_APPEARS -> listOf(
+            TutorialSpotlight(targets.arrangement, R.string.tut_tip_scan_area)
+        )
+        TutorialStep.SETS_AND_REVEAL -> listOf(
+            TutorialSpotlight(targets.selectionInfo, R.string.tut_tip_counts),
+            TutorialSpotlight(targets.revealSetsButton, R.string.tut_tip_reveal_button)
+        )
+        TutorialStep.SCAN_EDIT -> listOf(
+            TutorialSpotlight(targets.arrangement, R.string.tut_tip_scan_edit)
+        )
+        TutorialStep.MANUAL_SELECTION -> listOf(
+            TutorialSpotlight(targets.manualSelection, R.string.tut_tip_manual_area),
+            TutorialSpotlight(targets.editFab, R.string.tut_tip_edit_button)
+        )
     }
 
     val description = when (tutorial.currentStep) {
@@ -94,7 +104,7 @@ fun TutorialLayer(
         totalStepsCount = TutorialStep.entries.size,
         title = stringResource(tutorial.currentStep.titleRes),
         description = description,
-        targetRects = currentTargetRects,
+        spotlights = currentSpotlights,
         onNext = { tutorial.next() },
         onBack = { tutorial.previous() },
         onSkip = { tutorial.skip() },

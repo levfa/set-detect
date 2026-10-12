@@ -88,4 +88,11 @@
     <string name="tut_next">Next</string>
     <string name="tut_skip">Skip</string>
     <string name="tut_finish">Finish</string>
+    <string name="tut_tip_scan_button">After the tutorial, the camera opens here.</string>
+    <string name="tut_tip_edit_button">After the tutorial, the card picker opens here.</string>
+    <string name="tut_tip_reveal_button">After the tutorial, you can reveal the sets here.</string>
+    <string name="tut_tip_counts">Sets and cards in the current selection.</string>
+    <string name="tut_tip_scan_area">An example scan. Yours will appear here.</string>
+    <string name="tut_tip_scan_edit">Cards can be tapped after the tutorial.</string>
+    <string name="tut_tip_manual_area">Manually selected cards appear here.</string>
 </resources>

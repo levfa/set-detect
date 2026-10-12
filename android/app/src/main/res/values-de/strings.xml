@@ -88,4 +88,11 @@
     <string name="tut_next">Weiter</string>
     <string name="tut_skip">Überspringen</string>
     <string name="tut_finish">Fertig</string>
+    <string name="tut_tip_scan_button">Nach dem Tutorial öffnet sich hier die Kamera.</string>
+    <string name="tut_tip_edit_button">Nach dem Tutorial öffnet sich hier die Kartenauswahl.</string>
+    <string name="tut_tip_reveal_button">Nach dem Tutorial lassen sich hier Sets anzeigen.</string>
+    <string name="tut_tip_counts">Sets und Karten in der aktuellen Kartenauslage.</string>
+    <string name="tut_tip_scan_area">Ein Beispielscan. Dein Scan erscheint später hier.</string>
+    <string name="tut_tip_scan_edit">Karten lassen sich nach dem Tutorial antippen.</string>
+    <string name="tut_tip_manual_area">Manuell ausgewählte Karten erscheinen hier.</string>
 </resources>

@@ -88,4 +88,11 @@
     <string name="tut_next">Siguiente</string>
     <string name="tut_skip">Omitir</string>
     <string name="tut_finish">Finalizar</string>
+    <string name="tut_tip_scan_button">Después del tutorial, aquí se abre la cámara.</string>
+    <string name="tut_tip_edit_button">Después del tutorial, aquí se abre el selector de cartas.</string>
+    <string name="tut_tip_reveal_button">Después del tutorial, aquí podrás ver los sets.</string>
+    <string name="tut_tip_counts">Sets y cartas de la selección actual.</string>
+    <string name="tut_tip_scan_area">Un escaneo de ejemplo. El tuyo aparecerá aquí.</string>
+    <string name="tut_tip_scan_edit">Después del tutorial podrás tocar las cartas.</string>
+    <string name="tut_tip_manual_area">Aquí aparecen las cartas seleccionadas manualmente.</string>
 </resources>

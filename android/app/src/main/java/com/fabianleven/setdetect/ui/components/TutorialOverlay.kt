@@ -1,9 +1,9 @@
 package com.fabianleven.setdetect.ui.components
 
+import androidx.annotation.StringRes
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -23,11 +23,23 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.fabianleven.setdetect.R
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+private const val SpotlightTooltipDurationMillis = 3000L
+
+// A spotlighted area in window coordinates and the tooltip shown when it is tapped.
+class TutorialSpotlight(
+    val rect: Rect,
+    @param:StringRes val hintRes: Int
+)
 
 enum class TutorialStep(
     val titleRes: Int,
@@ -41,13 +53,14 @@ enum class TutorialStep(
     MANUAL_SELECTION(R.string.tut_title, R.string.selection_manual_empty)
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TutorialOverlay(
     currentStepIndex: Int,
     totalStepsCount: Int,
     title: String,
     description: String,
-    targetRects: List<Rect>,
+    spotlights: List<TutorialSpotlight>,
     onNext: () -> Unit,
     onBack: () -> Unit,
     onSkip: () -> Unit,
@@ -55,14 +68,27 @@ fun TutorialOverlay(
     isLastStep: Boolean,
     isDemoPlaying: Boolean = false
 ) {
+    val validSpotlights = spotlights.filter { it.rect != Rect.Zero && it.rect.width > 0 && it.rect.height > 0 }
+    val currentSpotlights by rememberUpdatedState(validSpotlights)
+    val tapsEnabled by rememberUpdatedState(!isDemoPlaying)
+
+    // tapCount restarts the tooltip's timer on a repeated tap.
+    var tappedSpotlight by remember(currentStepIndex) { mutableStateOf<Int?>(null) }
+    var tapCount by remember { mutableIntStateOf(0) }
+
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {} // Capture clicks to prevent interaction with underlying UI
-            )
+            // Captures all taps to prevent interaction with the underlying UI.
+            // Keyed on the step so the handler writes that step's tappedSpotlight.
+            .pointerInput(currentStepIndex) {
+                detectTapGestures { position ->
+                    if (!tapsEnabled) return@detectTapGestures
+                    val hit = currentSpotlights.indexOfFirst { it.rect.inflate(8.dp.toPx()).contains(position) }
+                    tappedSpotlight = hit.takeIf { it >= 0 }
+                    tapCount++
+                }
+            }
             .graphicsLayer(alpha = 0.99f)
     ) {
         val density = LocalDensity.current
@@ -71,7 +97,7 @@ fun TutorialOverlay(
         val screenWidthPx = with(density) { maxWidth.toPx() }
         val screenHeightPx = with(density) { maxHeight.toPx() }
 
-        val validRects = targetRects.filter { it != Rect.Zero && it.width > 0 && it.height > 0 }
+        val validRects = validSpotlights.map { it.rect }
         val hasTarget = validRects.isNotEmpty()
         val isMultiTarget = validRects.size > 1
         val isLargeArea = hasTarget && !isMultiTarget &&
@@ -163,6 +189,40 @@ fun TutorialOverlay(
                             cornerRadius = CornerRadius(cornerRadius + maxOf(pW, pH)),
                             style = Stroke(width = 2.dp.toPx())
                         )
+                    }
+                }
+            }
+        }
+
+        // An invisible tooltip anchor over each spotlight.
+        validSpotlights.forEachIndexed { index, spotlight ->
+            key(currentStepIndex, index) {
+                val rect = spotlight.rect
+                val tooltipState = rememberTooltipState(isPersistent = true)
+                if (tappedSpotlight == index && !isDemoPlaying) {
+                    LaunchedEffect(tapCount) {
+                        launch { tooltipState.show() }
+                        delay(SpotlightTooltipDurationMillis)
+                        tappedSpotlight = null
+                    }
+                }
+                // TooltipBox anchors its popup to a Box outside the one its
+                // modifier applies to, so the offset needs a wrapper.
+                Box(Modifier.offset { IntOffset(rect.left.toInt(), rect.top.toInt()) }) {
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                            if (rect.center.y > screenHeightPx / 2f) TooltipAnchorPosition.Above else TooltipAnchorPosition.Below
+                        ),
+                        tooltip = {
+                            PlainTooltip(caretShape = TooltipDefaults.caretShape()) {
+                                Text(stringResource(spotlight.hintRes))
+                            }
+                        },
+                        state = tooltipState,
+                        focusable = false,
+                        enableUserInput = false
+                    ) {
+                        Box(Modifier.size(with(density) { rect.width.toDp() }, with(density) { rect.height.toDp() }))
                     }
                 }
             }

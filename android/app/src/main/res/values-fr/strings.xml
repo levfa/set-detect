@@ -88,4 +88,11 @@
     <string name="tut_next">Suivant</string>
     <string name="tut_skip">Passer</string>
     <string name="tut_finish">Terminer</string>
+    <string name="tut_tip_scan_button">Après le tutoriel, l\'appareil photo s\'ouvre ici.</string>
+    <string name="tut_tip_edit_button">Après le tutoriel, le sélecteur de cartes s\'ouvre ici.</string>
+    <string name="tut_tip_reveal_button">Après le tutoriel, vous pourrez afficher les sets ici.</string>
+    <string name="tut_tip_counts">Sets et cartes de la sélection actuelle.</string>
+    <string name="tut_tip_scan_area">Un exemple de scan. Le vôtre apparaîtra ici.</string>
+    <string name="tut_tip_scan_edit">Après le tutoriel, vous pourrez toucher les cartes.</string>
+    <string name="tut_tip_manual_area">Les cartes sélectionnées manuellement apparaissent ici.</string>
 </resources>
