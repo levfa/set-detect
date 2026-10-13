@@ -35,6 +35,14 @@ def current_version(runs_root: pl.Path) -> str | None:
     return current.readlink().name
 
 
+def resolve_version(runs_root: pl.Path, version: str | None) -> tuple[str, pl.Path]:
+    """Name and run directory of ``version``, or of the promoted version when it is None."""
+    version = version or current_version(runs_root)
+    if version is None:
+        raise SystemExit(f"no promoted version under {runs_root}; pass --version explicitly or promote a run first")
+    return version, runs_root / version
+
+
 def resolve_current(runs_root: pl.Path) -> pl.Path:
     """Resolve the 'current' promotion symlink; raise a clear SystemExit if missing."""
     current = runs_root / "current"
@@ -44,6 +52,19 @@ def resolve_current(runs_root: pl.Path) -> pl.Path:
             "train a run and then promote it with the 'promote' subcommand"
         )
     return current
+
+
+CHECKPOINTS = ("last", "best")
+
+
+def promoted_checkpoint(runs_root: pl.Path, checkpoint: str, weights_subdir: str = "") -> pl.Path:
+    """``<checkpoint>.pt`` of the promoted 'current' run, else its other checkpoint if that one is missing."""
+    weights_dir = resolve_current(runs_root) / weights_subdir
+    for name in (checkpoint, *(c for c in CHECKPOINTS if c != checkpoint)):
+        path = weights_dir / f"{name}.pt"
+        if path.exists():
+            return path
+    raise SystemExit(f"no checkpoint found under {weights_dir}")
 
 
 def promote(runs_root: pl.Path, version: str = "latest") -> str:

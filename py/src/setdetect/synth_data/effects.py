@@ -5,6 +5,8 @@ from dataclasses import dataclass
 import cv2
 import numpy as np
 
+from setdetect.data.card_cutouts import MaskedCard
+
 
 def make_specular_highlight(
     card_img: np.ndarray,
@@ -424,7 +426,7 @@ class Effects:
     card_blurrer: tp.Callable[[np.ndarray, np.random.Generator], np.ndarray] | None = None
     bg_blurrer: tp.Callable[[np.ndarray, np.random.Generator], None] | None = None
     defocus_blurrer: tp.Callable[[np.ndarray, np.random.Generator], None] | None = None
-    augmenter: tp.Callable[[np.ndarray, np.random.Generator], np.ndarray] | None = None
+    augmenter: tp.Callable[[np.ndarray, MaskedCard, np.random.Generator], np.ndarray] | None = None
     card_coverer: tp.Callable[[np.ndarray, np.random.Generator], np.ndarray] | None = None
 
 

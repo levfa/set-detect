@@ -180,8 +180,9 @@ def add_card_aug_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--hue",
         type=float,
-        default=15.0,
-        help="Max hue shift in degrees (default: %(default)s)",
+        default=30.0,
+        help="Max hue shift in degrees for cards without a SET color; SET cards use fixed per-color "
+        "ranges, and 0 disables all hue shifts (default: %(default)s)",
     )
     parser.add_argument(
         "--sat",
@@ -192,7 +193,7 @@ def add_card_aug_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--wb",
         type=float,
-        default=0.15,
+        default=0.30,
         help="Max relative per-channel white-balance gain change (default: %(default)s)",
     )
     parser.add_argument(

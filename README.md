@@ -103,6 +103,15 @@ The models for card detection and classification can be trained and used as foll
       --data-root examples/data/img-synth-boards-class \
       --runs-root examples/models/set-card-classification/runs
     ```
+* Copy the exported models into the Android app's assets:
+  ```
+  set-card-corners prepare-android \
+    --runs-root examples/models/set-card-corners/runs
+  ```
+  ```
+  set-card-classification prepare-android \
+    --runs-root examples/models/set-card-classification/runs
+  ```
 * Detect, rectify, and classify cards in an image:
   ```
   set-card-detection show-arrangement \

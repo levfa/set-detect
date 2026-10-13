@@ -6,9 +6,10 @@ import cv2
 import numpy as np
 
 from setdetect.data.texturecan import DEFAULT_MANIFEST_NAME
-from setdetect.model import versioning
+from setdetect.model import prepare, versioning
 from setdetect.synth_data.card_synth import make_card_augmenter
 from setdetect.synth_data.effects import Effects, make_effects
+from setdetect.ui.prepare_args import add_prepare_args
 from setdetect.ui.synth_args import (
     add_blur_args,
     add_card_aug_args,
@@ -25,6 +26,7 @@ from setdetect.ui.synth_args import (
     shadow_from_args,
     spec_from_args,
 )
+from setdetect.ui.weights_args import add_weights_args, weights_from_args
 
 
 def _add_labeled_root_arg(parser: argparse.ArgumentParser) -> None:
@@ -33,8 +35,7 @@ def _add_labeled_root_arg(parser: argparse.ArgumentParser) -> None:
         "--data-root",
         type=pl.Path,
         required=True,
-        help="Directory of the labeled card dataset (raw/ + labels/card-classes.jsonl) written by "
-        "'synth-gen' and read by 'train' (validation) and 'quantize' (calibration).",
+        help="Directory of the labeled card dataset (raw/ + labels/card-classes.jsonl).",
     )
 
 
@@ -239,10 +240,64 @@ def _quantize(args: argparse.Namespace) -> None:
     print(f"quantized to {out}  ({quant_mb:.1f} MB, {ratio:.0f}% smaller than {orig_mb:.1f} MB)")
 
 
+def _print_eval_report(gt: dict[str, np.ndarray], pred: dict[str, np.ndarray], color_logits: np.ndarray) -> None:
+    from setdetect.model.card_classification import COLOR_INV, FILL_INV, HEADS
+
+    n = len(gt["color"])
+    all_correct = np.all([pred[h] == gt[h] for h in HEADS], axis=0)
+    print("  accuracy:  " + "  ".join(f"{h}={np.mean(pred[h] == gt[h]):.3f}" for h in HEADS))
+    print(f"  all heads correct: {int(all_correct.sum())}/{n}")
+
+    names = [COLOR_INV[i] for i in range(4)]
+    print("  color confusion (rows: labeled, columns: predicted)")
+    print("    " + " " * 8 + "".join(f"{name:>8}" for name in names))
+    for i, name in enumerate(names):
+        row = [int(np.sum((gt["color"] == i) & (pred["color"] == j))) for j in range(4)]
+        print(f"    {name:<8}" + "".join(f"{v:>8}" for v in row))
+
+    print("  color accuracy by labeled fill")
+    for i in range(4):
+        sel = gt["fill"] == i
+        if sel.any():
+            correct = int(np.sum(pred["color"][sel] == gt["color"][sel]))
+            print(f"    {FILL_INV[i]:<8} {correct}/{int(sel.sum())}")
+
+    top2 = np.sort(color_logits, axis=1)[:, -2:]
+    print(f"  mean color logit margin (top1 - top2): {float(np.mean(top2[:, 1] - top2[:, 0])):.2f}")
+
+
+def _eval(args: argparse.Namespace) -> None:
+    from setdetect.model.card_classification import COLOR_INV, CardClassDataset, predict_onnx
+
+    samples = CardClassDataset(args.data_root).samples
+    if not samples:
+        raise SystemExit(f"no labeled cards under {args.data_root}")
+
+    color_preds: list[np.ndarray] = []
+    gt: dict[str, np.ndarray] = {}
+    for weights in args.weights:
+        if not weights.exists():
+            raise SystemExit(f"no ONNX model at {weights}")
+        gt, logits = predict_onnx(args.data_root, weights)
+        pred = {h: logits[h].argmax(axis=1) for h in logits}
+        print(f"\n{weights}  ({len(samples)} cards)")
+        _print_eval_report(gt, pred, logits["color"])
+        color_preds.append(pred["color"])
+
+    for other_weights, other in zip(args.weights[1:], color_preds[1:], strict=True):
+        differing = np.flatnonzero(color_preds[0] != other)
+        print(f"\ncolor disagreements between {args.weights[0]} and {other_weights}: {len(differing)}")
+        for idx in differing:
+            print(
+                f"  {samples[idx].path}  labeled={COLOR_INV[int(gt['color'][idx])]}  "
+                f"first={COLOR_INV[int(color_preds[0][idx])]}  other={COLOR_INV[int(other[idx])]}"
+            )
+
+
 def _export(args: argparse.Namespace) -> None:
     from setdetect.model.card_classification import export_onnx
 
-    weights: pl.Path = args.weights or (versioning.resolve_current(args.runs_root) / "best.pt")
+    weights = weights_from_args(args, args.runs_root)
     if not weights.exists():
         raise SystemExit(f"no checkpoint at {weights}")
     out: pl.Path = args.out or (weights.parent / "onnx" / "model.onnx")
@@ -253,6 +308,8 @@ def _export(args: argparse.Namespace) -> None:
 
 
 def _classifier_model_card_body() -> str:
+    from setdetect.model.card_classification import CARD_SIZE
+
     return "\n".join(
         [
             "# set-card-class",
@@ -262,7 +319,7 @@ def _classifier_model_card_body() -> str:
             "",
             "## Input / output",
             "",
-            "- Input: RGB card crop, resized to 224x320, normalized with ImageNet "
+            f"- Input: RGB card crop, resized to {CARD_SIZE[0]}x{CARD_SIZE[1]}, normalized with ImageNet "
             "mean/std (`mean=[0.485, 0.456, 0.406]`, `std=[0.229, 0.224, 0.225]`).",
             "- Output: four classification heads, in order count/color/fill/shape, "
             "each one of its three SET values plus `other` (low-confidence / "
@@ -281,78 +338,32 @@ def _classifier_model_card_body() -> str:
     )
 
 
-def _prepare_hf(args: argparse.Namespace) -> None:
-    from setdetect.model import hf_export
-
-    runs_root: pl.Path = args.runs_root
-    version = args.version or versioning.current_version(runs_root)
-    if version is None:
-        raise SystemExit(f"no promoted version under {runs_root}; pass --version explicitly or promote a run first")
-    run_dir = runs_root / version
-
-    onnx_dir = run_dir / "onnx"
-    model_onnx = onnx_dir / "model.onnx"
-    if not model_onnx.is_file():
-        raise SystemExit(f"no ONNX export at {model_onnx}; run 'set-card-classification export' for this version first")
-
-    artifact_files = [(model_onnx, "onnx/model.onnx")]
-    for name in ("model.onnx.data", "model_quantized.onnx"):
-        path = onnx_dir / name
-        if path.is_file():
-            artifact_files.append((path, f"onnx/{name}"))
-        else:
-            print(f"no {name} found, skipping")
-
-    readme = hf_export.render_model_card(
-        frontmatter={
-            "license": "agpl-3.0",
-            "library_name": "onnx",
-            "tags": ["image-classification", "resnet18", "multi-task", "card-classification"],
-            "pipeline_tag": "image-classification",
-        },
-        body=_classifier_model_card_body(),
-    )
-
-    hf_export.stage_files(args.out_dir, artifact_files)
-    hf_export.write_text(args.out_dir, "README.md", readme)
-    print(f"staged {version} into {args.out_dir} -- inspect with 'git status', then commit/push/tag it yourself")
+_PREPARE_SPEC = prepare.ModelSpec(
+    cli="set-card-classification",
+    onnx_files=("model.onnx", "model.onnx.data", "model_quantized.onnx"),
+    card_frontmatter={
+        "license": "agpl-3.0",
+        "library_name": "onnx",
+        "tags": ["image-classification", "resnet18", "multi-task", "card-classification"],
+        "pipeline_tag": "image-classification",
+    },
+    card_body=_classifier_model_card_body,
+    android_file="model_quantized.onnx",
+    android_asset="card_classifier_quant.onnx",
+)
 
 
-def _prepare_github(args: argparse.Namespace) -> None:
-    from setdetect.model import hf_export
+def _prepare_repo(args: argparse.Namespace) -> None:
+    version, run_dir = versioning.resolve_version(pl.Path(args.runs_root), args.version)
+    for name in prepare.prepare_repo(_PREPARE_SPEC, run_dir, args.out_dir):
+        print(f"no {name} found, skipping")
+    print(f"staged {version} into {args.out_dir} -- inspect with 'git status', then commit and push it yourself")
 
-    runs_root: pl.Path = args.runs_root
-    version = args.version or versioning.current_version(runs_root)
-    if version is None:
-        raise SystemExit(f"no promoted version under {runs_root}; pass --version explicitly or promote a run first")
-    run_dir = runs_root / version
 
-    onnx_dir = run_dir / "onnx"
-    model_onnx = onnx_dir / "model.onnx"
-    if not model_onnx.is_file():
-        raise SystemExit(f"no ONNX export at {model_onnx}; run 'set-card-classification export' for this version first")
-
-    artifact_files = [(model_onnx, "onnx/model.onnx")]
-    for name in ("model.onnx.data", "model_quantized.onnx"):
-        path = onnx_dir / name
-        if path.is_file():
-            artifact_files.append((path, f"onnx/{name}"))
-        else:
-            print(f"no {name} found, skipping")
-
-    readme = hf_export.render_model_card(
-        frontmatter={
-            "license": "agpl-3.0",
-            "library_name": "onnx",
-            "tags": ["image-classification", "resnet18", "multi-task", "card-classification"],
-            "pipeline_tag": "image-classification",
-        },
-        body=_classifier_model_card_body(),
-    )
-
-    hf_export.stage_files(args.out_dir, artifact_files)
-    hf_export.write_text(args.out_dir, "README.md", readme)
-    print(f"staged {version} into {args.out_dir} -- inspect with 'git status', then commit/push it yourself")
+def _prepare_android(args: argparse.Namespace) -> None:
+    version, run_dir = versioning.resolve_version(pl.Path(args.runs_root), args.version)
+    prepare.prepare_android(_PREPARE_SPEC, run_dir, version, args.out_dir)
+    print(f"copied {version} into {args.out_dir} -- rebuild the app to use it")
 
 
 def _promote(args: argparse.Namespace) -> None:
@@ -451,12 +462,7 @@ def main(argv: list[str] | None = None) -> None:
         help="Export the trained classifier to ONNX",
     )
     _add_runs_root_arg(ex)
-    ex.add_argument(
-        "--weights",
-        type=pl.Path,
-        default=None,
-        help="Checkpoint to export (default: promoted 'current' run's best.pt under --runs-root)",
-    )
+    add_weights_args(ex)
     ex.add_argument(
         "--out",
         type=pl.Path,
@@ -500,6 +506,19 @@ def main(argv: list[str] | None = None) -> None:
         help="Number of calibration images (default: %(default)s)",
     )
 
+    ev = subparsers.add_parser(
+        "eval",
+        help="Report per-head accuracy and color confusion of exported ONNX classifiers on a labeled dataset",
+    )
+    _add_labeled_root_arg(ev)
+    ev.add_argument(
+        "--weights",
+        type=pl.Path,
+        nargs="+",
+        required=True,
+        help="One or more ONNX models; each further model's color predictions are compared with the first's",
+    )
+
     pr = subparsers.add_parser(
         "promote",
         help="Mark a trained run version as the 'current' default for inference/export",
@@ -518,43 +537,28 @@ def main(argv: list[str] | None = None) -> None:
     )
     _add_runs_root_arg(lv)
 
-    pp = subparsers.add_parser(
+    prepare_hf_parser = subparsers.add_parser(
         "prepare-hf",
         help="Stage this model's ONNX export + a generated model card into a local "
         "directory for manual Hugging Face publishing",
     )
-    _add_runs_root_arg(pp)
-    pp.add_argument(
-        "--version",
-        type=str,
-        default=None,
-        help="Version under --runs-root to stage (default: the promoted 'current' version)",
-    )
-    pp.add_argument(
-        "--out-dir",
-        type=pl.Path,
-        required=True,
-        help="Directory to stage files into (e.g. your local clone of the Hugging Face repo)",
-    )
+    _add_runs_root_arg(prepare_hf_parser)
+    add_prepare_args(prepare_hf_parser)
 
-    pg = subparsers.add_parser(
+    prepare_github_parser = subparsers.add_parser(
         "prepare-github",
         help="Stage this model's ONNX export + a generated model card into a local "
         "directory for manual GitHub publishing",
     )
-    _add_runs_root_arg(pg)
-    pg.add_argument(
-        "--version",
-        type=str,
-        default=None,
-        help="Version under --runs-root to stage (default: the promoted 'current' version)",
+    _add_runs_root_arg(prepare_github_parser)
+    add_prepare_args(prepare_github_parser)
+
+    prepare_android_parser = subparsers.add_parser(
+        "prepare-android",
+        help="Copy this model's ONNX export into the Android app's assets",
     )
-    pg.add_argument(
-        "--out-dir",
-        type=pl.Path,
-        required=True,
-        help="Directory to stage files into (e.g. a subfolder of your local clone of the GitHub repo)",
-    )
+    _add_runs_root_arg(prepare_android_parser)
+    add_prepare_args(prepare_android_parser, default_out_dir=prepare.DEFAULT_ANDROID_ASSETS)
 
     args = parser.parse_args(argv)
     if args.command == "synth-gen":
@@ -567,14 +571,16 @@ def main(argv: list[str] | None = None) -> None:
         _export(args)
     elif args.command == "quantize":
         _quantize(args)
+    elif args.command == "eval":
+        _eval(args)
     elif args.command == "promote":
         _promote(args)
     elif args.command == "list-versions":
         _list_versions(args)
-    elif args.command == "prepare-hf":
-        _prepare_hf(args)
-    elif args.command == "prepare-github":
-        _prepare_github(args)
+    elif args.command in ("prepare-hf", "prepare-github"):
+        _prepare_repo(args)
+    elif args.command == "prepare-android":
+        _prepare_android(args)
 
 
 if __name__ == "__main__":

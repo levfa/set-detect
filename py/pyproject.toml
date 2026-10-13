@@ -42,7 +42,6 @@ set-card-class-data = "setdetect.cli.card_class_data:main"
 set-card-classification = "setdetect.cli.card_classification:main"
 set-card-detection = "setdetect.cli.card_detection:main"
 set-card-tracking = "setdetect.cli.card_tracking:main"
-set-sync-android-assets = "setdetect.cli.sync_android_assets:main"
 
 
 [tool.uv]

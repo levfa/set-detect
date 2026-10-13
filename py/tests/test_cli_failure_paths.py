@@ -23,20 +23,11 @@ def test_missing_subcommand_exits_with_usage_error(module_name):
     assert exc_info.value.code == 2
 
 
-def test_sync_android_assets_missing_promoted_version_raises(tmp_path):
-    from setdetect.cli.sync_android_assets import main
-
+@pytest.mark.parametrize("module_name", ["setdetect.cli.card_corners", "setdetect.cli.card_classification"])
+def test_prepare_android_missing_promoted_version_raises(module_name, tmp_path):
+    mod = importlib.import_module(module_name)
     with pytest.raises(SystemExit):
-        main(
-            [
-                "--corner-runs-root",
-                str(tmp_path / "corner_runs"),
-                "--class-runs-root",
-                str(tmp_path / "class_runs"),
-                "--assets-dir",
-                str(tmp_path / "assets"),
-            ]
-        )
+        mod.main(["prepare-android", "--runs-root", str(tmp_path / "runs"), "--out-dir", str(tmp_path / "assets")])
 
 
 def test_card_detection_show_boards_missing_weights_is_argparse_error(tmp_path):

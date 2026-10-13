@@ -38,7 +38,8 @@ SHAPE_INV = {v: k for k, v in SHAPE_MAP.items()}
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
 
-CARD_SIZE: tuple[int, int] = (224, 320)  # width, height; portrait SET card (5:7 → 7:10)
+# width, height of a portrait SET card (aspect 5:7)
+CARD_SIZE: tuple[int, int] = (112, 160)
 
 
 class SetCardClassifier(nn.Module):
@@ -68,6 +69,32 @@ class SetCardClassifier(nn.Module):
         }
 
 
+def card_region(
+    img: np.ndarray,
+    quad: np.ndarray,
+    out_w: int,
+    pad: int = 20,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Crop ``img`` to the padded bounding box of ``quad`` and return it with the adjusted quad.
+
+    A card wider than ``out_w`` pixels is first area-averaged down to that width: the
+    bilinear perspective warp that follows would otherwise alias thin strokes and stripes.
+    """
+    x_min = max(0, int(np.min(quad[:, 0])) - pad)
+    y_min = max(0, int(np.min(quad[:, 1])) - pad)
+    x_max = min(img.shape[1], int(np.max(quad[:, 0])) + pad)
+    y_max = min(img.shape[0], int(np.max(quad[:, 1])) + pad)
+    region = img[y_min:y_max, x_min:x_max]
+    quad = (quad - [x_min, y_min]).astype(np.float32)
+
+    card_w = 0.5 * float(np.linalg.norm(quad[1] - quad[0]) + np.linalg.norm(quad[2] - quad[3]))
+    if region.size > 0 and card_w > out_w:
+        scale = out_w / card_w
+        region = cv2.resize(region, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+        quad = quad * scale
+    return region, quad
+
+
 def _warp_card(
     img: np.ndarray,
     quad: np.ndarray,
@@ -80,7 +107,7 @@ def _warp_card(
     synthetic training and real validation cards are processed identically.
     """
     w, h = size
-    src = quad.astype(np.float32)
+    img, src = card_region(img, quad, w)
     dst = np.array([[0, 0], [w, 0], [w, h], [0, h]], dtype=np.float32)
     M = cv2.getPerspectiveTransform(src, dst)
     warped = cv2.warpPerspective(img, M, (w, h))
@@ -127,11 +154,52 @@ def _default_effects() -> Effects:
     return dataclasses.replace(make_effects(), augmenter=make_card_augmenter(CardAugConfig()))
 
 
+@dataclasses.dataclass(frozen=True)
+class CaptureConfig:
+    """Camera-frame degradation applied to a synthetic board. Zero disables a transform."""
+
+    min_scale: float = 0.5
+    chroma_prob: float = 0.8
+    noise_sigma: float = 6.0
+
+
+def _simulate_capture(
+    img: np.ndarray,
+    quads: list[BoardQuad],
+    cfg: CaptureConfig,
+    rng: np.random.Generator,
+) -> np.ndarray:
+    """Degrade a board like a low-resolution camera frame, scaling ``quads`` in place.
+
+    Shrinks the board by a random factor so cards cover as few pixels as in a real frame,
+    halves the chroma resolution like a 4:2:0 sensor stream, and adds sensor noise.
+    """
+    if 0 < cfg.min_scale < 1:
+        scale = float(rng.uniform(cfg.min_scale, 1.0))
+        img = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+        for bq in quads:
+            bq.quad = bq.quad * scale
+
+    if rng.random() < cfg.chroma_prob:
+        ycrcb = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
+        h, w = ycrcb.shape[:2]
+        chroma = cv2.resize(ycrcb[..., 1:], (max(w // 2, 1), max(h // 2, 1)), interpolation=cv2.INTER_AREA)
+        ycrcb[..., 1:] = cv2.resize(chroma, (w, h), interpolation=cv2.INTER_LINEAR)
+        img = cv2.cvtColor(ycrcb, cv2.COLOR_YCrCb2BGR)
+
+    if cfg.noise_sigma > 0:
+        sigma = float(rng.uniform(0.0, cfg.noise_sigma))
+        noise = rng.normal(0.0, sigma, img.shape).astype(np.float32)
+        img = np.clip(img.astype(np.float32) + noise, 0, 255).astype(np.uint8)
+    return img
+
+
 def _synth_board(
     cards: MaskedCardDataset,
     tex: TextureDataset,
     effects: Effects,
     rng: np.random.Generator,
+    capture: CaptureConfig | None = None,
 ) -> tuple[np.ndarray, list[BoardQuad]]:
     """One synthetic board with real, fake and false-positive quads, jittered like detector output."""
     img, quads = make_board(
@@ -145,6 +213,7 @@ def _synth_board(
     )
     add_false_positive_quads(quads, num_rot=3, num_edge=3, rng=rng)
     jitter_quads(quads, frac=0.06, rng=rng)
+    img = _simulate_capture(img, quads, capture if capture is not None else CaptureConfig(), rng)
     return img, quads
 
 
@@ -516,6 +585,34 @@ def predict_val(
             }
         )
     return results
+
+
+def predict_onnx(data_root: pl.Path, weights_path: pl.Path) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray]]:
+    """Run an exported ONNX classifier over a labeled dataset.
+
+    Returns ``(gt, logits)``, each keyed by head: ground-truth indices of shape (N,) and
+    raw logits of shape (N, 4).
+    """
+    from setdetect.card_detection.detector import create_session  # imports this module
+
+    session = create_session(weights_path)
+    _, _, in_h, in_w = session.get_inputs()[0].shape
+    ds = CardClassDataset(data_root, size=(in_w, in_h))
+    output_names = [out.name for out in session.get_outputs()]
+
+    gt: dict[str, list[int]] = {h: [] for h in HEADS}
+    logits: dict[str, list[np.ndarray]] = {h: [] for h in HEADS}
+    for idx in range(len(ds)):
+        tensor, *targets = ds[idx]
+        outputs = session.run(output_names, {"input": np.expand_dims(tensor.numpy(), 0)})
+        by_name = dict(zip(output_names, outputs, strict=True))
+        for h, target in zip(HEADS, targets, strict=True):
+            gt[h].append(target)
+            logits[h].append(np.asarray(by_name[h])[0])
+    return (
+        {h: np.array(gt[h], dtype=np.int64) for h in HEADS},
+        {h: np.stack(logits[h]) if logits[h] else np.zeros((0, 4), dtype=np.float32) for h in HEADS},
+    )
 
 
 def export_onnx(

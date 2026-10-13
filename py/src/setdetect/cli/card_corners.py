@@ -7,9 +7,10 @@ import numpy as np
 import pandas as pd
 
 from setdetect.data.texturecan import DEFAULT_MANIFEST_NAME, IMAGE_SUFFIXES
-from setdetect.model import versioning
+from setdetect.model import prepare, versioning
 from setdetect.model.card_corners import SynthConfig, generate_dataset, predict, train
 from setdetect.ui.gui import CORNER_COLORS
+from setdetect.ui.prepare_args import add_prepare_args
 from setdetect.ui.synth_args import (
     add_blur_args,
     add_card_cover_args,
@@ -27,6 +28,7 @@ from setdetect.ui.synth_args import (
     shadow_from_args,
     spec_from_args,
 )
+from setdetect.ui.weights_args import add_weights_args, weights_from_args
 
 
 def _resolve_model_path(model: str | pl.Path, models_root: pl.Path) -> pl.Path:
@@ -39,16 +41,8 @@ def _resolve_model_path(model: str | pl.Path, models_root: pl.Path) -> pl.Path:
     return models_root / p
 
 
-def _promoted_weights(runs_root: pl.Path) -> pl.Path:
-    """Weights (best.pt, falling back to last.pt) from the promoted 'current' run."""
-    weights_dir = versioning.resolve_current(runs_root) / "weights"
-    best = weights_dir / "best.pt"
-    if best.exists():
-        return best
-    last = weights_dir / "last.pt"
-    if last.exists():
-        return last
-    raise SystemExit(f"no weights found under {weights_dir}")
+# Where a corner training run keeps its checkpoints, relative to the run directory.
+WEIGHTS_SUBDIR = "weights"
 
 
 def _newest_results_csv(runs_root: pl.Path) -> pl.Path | None:
@@ -224,9 +218,7 @@ def _show_boards(args: argparse.Namespace) -> None:
     ]
     if not image_paths:
         raise SystemExit(f"no images found in {raw_root}")
-    weights = (
-        pl.Path(args.weights).expanduser() if args.weights is not None else _promoted_weights(pl.Path(args.runs_root))
-    )
+    weights = weights_from_args(args, args.runs_root, WEIGHTS_SUBDIR)
 
     print(f"inferring {len(image_paths)} images with {weights} ...")
     predictions = predict(
@@ -333,9 +325,7 @@ def _synth_train(args: argparse.Namespace) -> None:
 def _export(args: argparse.Namespace) -> None:
     from setdetect.model.card_corners import export_onnx
 
-    weights = (
-        pl.Path(args.weights).expanduser() if args.weights is not None else _promoted_weights(pl.Path(args.runs_root))
-    )
+    weights = weights_from_args(args, args.runs_root, WEIGHTS_SUBDIR)
     out_path = weights.parent.parent / "onnx" / "card_corners.onnx"
     out = export_onnx(weights, out_path=out_path, imgsz=args.imgsz)
     size_mb = out.stat().st_size / (1024 * 1024)
@@ -368,60 +358,32 @@ def _corner_model_card_body() -> str:
     )
 
 
-def _prepare_hf(args: argparse.Namespace) -> None:
-    from setdetect.model import hf_export
-
-    runs_root = pl.Path(args.runs_root)
-    version = args.version or versioning.current_version(runs_root)
-    if version is None:
-        raise SystemExit(f"no promoted version under {runs_root}; pass --version explicitly or promote a run first")
-    run_dir = runs_root / version
-
-    onnx_path = run_dir / "onnx" / "card_corners.onnx"
-    if not onnx_path.is_file():
-        raise SystemExit(f"no ONNX export at {onnx_path}; run 'set-card-corners export' for this version first")
-
-    readme = hf_export.render_model_card(
-        frontmatter={
-            "license": "agpl-3.0",
-            "library_name": "onnx",
-            "tags": ["object-detection", "keypoint-detection", "yolo", "yolo11-pose", "card-detection"],
-            "pipeline_tag": "keypoint-detection",
-        },
-        body=_corner_model_card_body(),
-    )
-
-    hf_export.stage_files(args.out_dir, [(onnx_path, "onnx/card_corners.onnx")])
-    hf_export.write_text(args.out_dir, "README.md", readme)
-    print(f"staged {version} into {args.out_dir} -- inspect with 'git status', then commit/push/tag it yourself")
+_PREPARE_SPEC = prepare.ModelSpec(
+    cli="set-card-corners",
+    onnx_files=("card_corners.onnx",),
+    card_frontmatter={
+        "license": "agpl-3.0",
+        "library_name": "onnx",
+        "tags": ["object-detection", "keypoint-detection", "yolo", "yolo11-pose", "card-detection"],
+        "pipeline_tag": "keypoint-detection",
+    },
+    card_body=_corner_model_card_body,
+    android_file="card_corners.onnx",
+    android_asset="card_corners.onnx",
+)
 
 
-def _prepare_github(args: argparse.Namespace) -> None:
-    from setdetect.model import hf_export
+def _prepare_repo(args: argparse.Namespace) -> None:
+    version, run_dir = versioning.resolve_version(pl.Path(args.runs_root), args.version)
+    for name in prepare.prepare_repo(_PREPARE_SPEC, run_dir, args.out_dir):
+        print(f"no {name} found, skipping")
+    print(f"staged {version} into {args.out_dir} -- inspect with 'git status', then commit and push it yourself")
 
-    runs_root = pl.Path(args.runs_root)
-    version = args.version or versioning.current_version(runs_root)
-    if version is None:
-        raise SystemExit(f"no promoted version under {runs_root}; pass --version explicitly or promote a run first")
-    run_dir = runs_root / version
 
-    onnx_path = run_dir / "onnx" / "card_corners.onnx"
-    if not onnx_path.is_file():
-        raise SystemExit(f"no ONNX export at {onnx_path}; run 'set-card-corners export' for this version first")
-
-    readme = hf_export.render_model_card(
-        frontmatter={
-            "license": "agpl-3.0",
-            "library_name": "onnx",
-            "tags": ["object-detection", "keypoint-detection", "yolo", "yolo11-pose", "card-detection"],
-            "pipeline_tag": "keypoint-detection",
-        },
-        body=_corner_model_card_body(),
-    )
-
-    hf_export.stage_files(args.out_dir, [(onnx_path, "onnx/card_corners.onnx")])
-    hf_export.write_text(args.out_dir, "README.md", readme)
-    print(f"staged {version} into {args.out_dir} -- inspect with 'git status', then commit/push it yourself")
+def _prepare_android(args: argparse.Namespace) -> None:
+    version, run_dir = versioning.resolve_version(pl.Path(args.runs_root), args.version)
+    prepare.prepare_android(_PREPARE_SPEC, run_dir, version, args.out_dir)
+    print(f"copied {version} into {args.out_dir} -- rebuild the app to use it")
 
 
 def _promote(args: argparse.Namespace) -> None:
@@ -484,12 +446,7 @@ def main(argv: list[str] | None = None) -> None:
         required=True,
         help="Directory containing the raw real photos to test against.",
     )
-    boards_parser.add_argument(
-        "--weights",
-        type=pl.Path,
-        default=None,
-        help="Model weights; defaults to the promoted 'current' run's best.pt under --runs-root",
-    )
+    add_weights_args(boards_parser)
     _add_runs_root_arg(boards_parser)
     boards_parser.add_argument(
         "--imgsz",
@@ -539,12 +496,7 @@ def main(argv: list[str] | None = None) -> None:
         "export",
         help="Export the trained corner-keypoint model to ONNX",
     )
-    ex_parser.add_argument(
-        "--weights",
-        type=pl.Path,
-        default=None,
-        help="Model weights (default: promoted 'current' run's best.pt under --runs-root)",
-    )
+    add_weights_args(ex_parser)
     _add_runs_root_arg(ex_parser)
     ex_parser.add_argument(
         "--imgsz",
@@ -571,43 +523,28 @@ def main(argv: list[str] | None = None) -> None:
     )
     _add_runs_root_arg(list_parser)
 
-    pp_parser = subparsers.add_parser(
+    prepare_hf_parser = subparsers.add_parser(
         "prepare-hf",
         help="Stage this model's ONNX export + a generated model card into a local "
         "directory for manual Hugging Face publishing",
     )
-    _add_runs_root_arg(pp_parser)
-    pp_parser.add_argument(
-        "--version",
-        type=str,
-        default=None,
-        help="Version under --runs-root to stage (default: the promoted 'current' version)",
-    )
-    pp_parser.add_argument(
-        "--out-dir",
-        type=pl.Path,
-        required=True,
-        help="Directory to stage files into (e.g. your local clone of the Hugging Face repo)",
-    )
+    _add_runs_root_arg(prepare_hf_parser)
+    add_prepare_args(prepare_hf_parser)
 
-    pg_parser = subparsers.add_parser(
+    prepare_github_parser = subparsers.add_parser(
         "prepare-github",
         help="Stage this model's ONNX export + a generated model card into a local "
         "directory for manual GitHub publishing",
     )
-    _add_runs_root_arg(pg_parser)
-    pg_parser.add_argument(
-        "--version",
-        type=str,
-        default=None,
-        help="Version under --runs-root to stage (default: the promoted 'current' version)",
+    _add_runs_root_arg(prepare_github_parser)
+    add_prepare_args(prepare_github_parser)
+
+    prepare_android_parser = subparsers.add_parser(
+        "prepare-android",
+        help="Copy this model's ONNX export into the Android app's assets",
     )
-    pg_parser.add_argument(
-        "--out-dir",
-        type=pl.Path,
-        required=True,
-        help="Directory to stage files into (e.g. a subfolder of your local clone of the GitHub repo)",
-    )
+    _add_runs_root_arg(prepare_android_parser)
+    add_prepare_args(prepare_android_parser, default_out_dir=prepare.DEFAULT_ANDROID_ASSETS)
 
     args = parser.parse_args(argv)
     if args.command == "synth-gen":
@@ -624,10 +561,10 @@ def main(argv: list[str] | None = None) -> None:
         _promote(args)
     elif args.command == "list-versions":
         _list_versions(args)
-    elif args.command == "prepare-hf":
-        _prepare_hf(args)
-    elif args.command == "prepare-github":
-        _prepare_github(args)
+    elif args.command in ("prepare-hf", "prepare-github"):
+        _prepare_repo(args)
+    elif args.command == "prepare-android":
+        _prepare_android(args)
 
 
 if __name__ == "__main__":

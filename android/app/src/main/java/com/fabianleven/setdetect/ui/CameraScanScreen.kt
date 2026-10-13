@@ -56,6 +56,7 @@ import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import java.util.concurrent.Executors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -543,31 +544,27 @@ private fun imageProxyToBitmap(imageProxy: ImageProxy): Bitmap {
 }
 
 private fun copyAssetToFile(context: Context, assetName: String): File {
-    val dir = File(context.cacheDir, "models")
-    if (!dir.exists()) dir.mkdirs()
-    val destinationFile = File(dir, assetName.substringAfterLast("/"))
-
-    try {
-        val assetManager = context.assets
-        val assetSize = try {
-            assetManager.openFd(assetName).use { it.length }
-        } catch (e: Exception) {
-            assetManager.open(assetName).use { it.available().toLong() }
-        }
-
-        if (destinationFile.exists() && destinationFile.length() == assetSize && assetSize > 0) {
-            return destinationFile
-        }
-    } catch (e: Exception) {
-        if (destinationFile.exists() && destinationFile.length() > 0) {
-            return destinationFile
-        }
+    // Bundled assets only change when the app is installed or updated, so
+    // the copies are kept per install time and older ones are dropped.
+    val installTime = context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime
+    val root = File(context.cacheDir, "models")
+    val dir = File(root, installTime.toString())
+    if (!dir.exists()) {
+        root.deleteRecursively()
+        dir.mkdirs()
     }
+    val destinationFile = File(dir, assetName.substringAfterLast("/"))
+    if (destinationFile.exists()) return destinationFile
 
+    // Copied under a temporary name so an interrupted copy is never used.
+    val partialFile = File(dir, destinationFile.name + ".part")
     context.assets.open(assetName).use { input ->
-        FileOutputStream(destinationFile).use { output ->
+        FileOutputStream(partialFile).use { output ->
             input.copyTo(output)
         }
+    }
+    if (!partialFile.renameTo(destinationFile)) {
+        throw IOException("could not store $assetName")
     }
     return destinationFile
 }

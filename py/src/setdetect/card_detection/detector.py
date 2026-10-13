@@ -7,7 +7,7 @@ import numpy as np
 import onnxruntime as ort
 import scipy.optimize as so
 
-from setdetect.model.card_classification import CARD_SIZE, MEAN, STD
+from setdetect.model.card_classification import CARD_SIZE, MEAN, STD, card_region
 from setdetect.set_game.game import Card, Color, Count, Fill, Shape
 
 
@@ -526,20 +526,7 @@ def _warp_card(
     warp_pad: int = 20,
 ) -> np.ndarray:
     w, h = size
-
-    x_min = int(np.min(quad[:, 0]))
-    x_max = int(np.max(quad[:, 0]))
-    y_min = int(np.min(quad[:, 1]))
-    y_max = int(np.max(quad[:, 1]))
-
-    pad = max(warp_pad, 0)
-    x_min = max(0, x_min - pad)
-    y_min = max(0, y_min - pad)
-    x_max = min(img.shape[1], x_max + pad)
-    y_max = min(img.shape[0], y_max + pad)
-
-    img_cropped = img[y_min:y_max, x_min:x_max]
-    quad_adj = (quad - [x_min, y_min]).astype(np.float32)
+    img_cropped, quad_adj = card_region(img, quad, w, max(warp_pad, 0))
 
     dst = np.array([[0, 0], [w, 0], [w, h], [0, h]], dtype=np.float32)
     persp_t = cv2.getPerspectiveTransform(quad_adj, dst)
@@ -577,20 +564,22 @@ def classify_cards(
     if not corners_list:
         return []
 
+    # the classifier's input size is fixed at export
+    _, _, in_h, in_w = session.get_inputs()[0].shape
     batch = np.concatenate(
-        [_preprocess_card(_warp_card(img_rgb, c)) for c in corners_list],
+        [_preprocess_card(_warp_card(img_rgb, c, (in_w, in_h))) for c in corners_list],
         axis=0,
     )
 
-    outputs = tp.cast(list[np.ndarray], session.run(None, {"input": batch}))
-    # outputs: [count_logits, shape_logits, fill_logits, color_logits] each (N, 4)
+    names = [out.name for out in session.get_outputs()]
+    outputs = dict(zip(names, tp.cast(list[np.ndarray], session.run(names, {"input": batch})), strict=True))
     results = []
     n = batch.shape[0]
     for i in range(n):
-        count_p = _softmax(outputs[0][i])
-        shape_p = _softmax(outputs[1][i])
-        fill_p = _softmax(outputs[2][i])
-        color_p = _softmax(outputs[3][i])
+        count_p = _softmax(outputs["count"][i])
+        shape_p = _softmax(outputs["shape"][i])
+        fill_p = _softmax(outputs["fill"][i])
+        color_p = _softmax(outputs["color"][i])
         results.append((count_p, color_p, shape_p, fill_p))
 
     return results

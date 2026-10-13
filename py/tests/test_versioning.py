@@ -80,3 +80,26 @@ def test_promote_latest_picks_highest_version(tmp_path):
 def test_promote_latest_raises_without_versions(tmp_path):
     with pytest.raises(SystemExit):
         versioning.promote(tmp_path, "latest")
+
+
+def test_promoted_checkpoint_prefers_the_requested_one_and_falls_back(tmp_path):
+    weights_dir = tmp_path / "v01-20260101" / "weights"
+    weights_dir.mkdir(parents=True)
+    (weights_dir / "best.pt").touch()
+    versioning.promote(tmp_path, "v01-20260101")
+
+    assert versioning.promoted_checkpoint(tmp_path, "best", "weights").name == "best.pt"
+    assert versioning.promoted_checkpoint(tmp_path, "last", "weights").name == "best.pt"
+    (weights_dir / "last.pt").touch()
+    assert versioning.promoted_checkpoint(tmp_path, "last", "weights").name == "last.pt"
+    with pytest.raises(SystemExit):
+        versioning.promoted_checkpoint(tmp_path, "last")
+
+
+def test_resolve_version_uses_the_given_or_the_promoted_version(tmp_path):
+    (tmp_path / "v01-20260101").mkdir()
+    with pytest.raises(SystemExit):
+        versioning.resolve_version(tmp_path, None)
+    assert versioning.resolve_version(tmp_path, "v01-20260101") == ("v01-20260101", tmp_path / "v01-20260101")
+    versioning.promote(tmp_path, "v01-20260101")
+    assert versioning.resolve_version(tmp_path, None) == ("v01-20260101", tmp_path / "v01-20260101")

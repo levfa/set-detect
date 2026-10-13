@@ -136,7 +136,7 @@ def make_image(
     card_blurrer: tp.Callable[[np.ndarray, np.random.Generator], np.ndarray] | None = None,
     bg_blurrer: tp.Callable[[np.ndarray, np.random.Generator], None] | None = None,
     defocus_blurrer: tp.Callable[[np.ndarray, np.random.Generator], None] | None = None,
-    augmenter: tp.Callable[[np.ndarray, np.random.Generator], np.ndarray] | None = None,
+    augmenter: tp.Callable[[np.ndarray, MaskedCard, np.random.Generator], np.ndarray] | None = None,
     card_coverer: tp.Callable[[np.ndarray, np.random.Generator], np.ndarray] | None = None,
     rng: np.random.Generator | None = None,
 ) -> tuple[Img, list[CardQuad]]:
@@ -307,7 +307,7 @@ def make_image(
         x, y, rot_agl = xs[k], ys[k], rot_angles[k]
 
         if augmenter is not None:
-            card_img = augmenter(card_img, hl_rng)
+            card_img = augmenter(card_img, card, hl_rng)
 
         # per-card lighting folded into the card before warping so it is clipped
         # by the card alpha and respects compositing order: a broad brightness

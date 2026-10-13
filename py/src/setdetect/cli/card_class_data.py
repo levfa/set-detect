@@ -8,7 +8,7 @@ import numpy as np
 
 import setdetect.data.img_dir as img_dir
 import setdetect.model.card_corners as cn
-from setdetect.cli.card_corners import _promoted_weights
+from setdetect.cli.card_corners import WEIGHTS_SUBDIR
 from setdetect.data.img_dir import (
     STATUS_GARBAGE,
     STATUS_NOT_SET,
@@ -18,6 +18,7 @@ from setdetect.data.img_dir import (
 from setdetect.model.card_classification import HEADS
 from setdetect.ui.data_args import add_img_root_arg
 from setdetect.ui.gui import ARROW_CODES, CORNER_COLORS, ESC_KEY, draw_label
+from setdetect.ui.weights_args import add_weights_args, weights_from_args
 
 _COLOR_KEYS = {"r": "red", "g": "green", "p": "purple"}
 _FILL_KEYS = {"o": "open", "s": "solid", "t": "striped"}
@@ -286,11 +287,7 @@ def _label_boards(args: argparse.Namespace) -> None:
     labels_path = img_dir.labels_file(args.data_root)
     records = img_dir.load_card_classes(labels_path)
 
-    weights = (
-        pl.Path(args.weights).expanduser()
-        if args.weights is not None
-        else _promoted_weights(pl.Path(args.corner_runs_root))
-    )
+    weights = weights_from_args(args, args.corner_runs_root, WEIGHTS_SUBDIR)
 
     images = [(str(path.relative_to(args.data_root)), path) for path in img_dir.list_images(args.data_root)]
     if not images:
@@ -551,12 +548,7 @@ def main(argv: list[str] | None = None) -> None:
         help="Interactively label detected cards in real board photos into labels/card-classes.jsonl",
     )
     add_img_root_arg(pa)
-    pa.add_argument(
-        "--weights",
-        type=pl.Path,
-        default=None,
-        help="Corner-keypoint model weights (default: promoted 'current' run's best.pt under --corner-runs-root)",
-    )
+    add_weights_args(pa, runs_root_flag="--corner-runs-root")
     pa.add_argument(
         "--corner-runs-root",
         type=pl.Path,

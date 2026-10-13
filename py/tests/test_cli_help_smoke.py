@@ -14,11 +14,17 @@ CLI_HELP_CASES = [
     ("setdetect.cli.card_classification", ["--help"]),
     ("setdetect.cli.card_classification", ["list-versions", "--help"]),
     ("setdetect.cli.card_classification", ["synth-gen", "--help"]),
+    ("setdetect.cli.card_classification", ["eval", "--help"]),
     ("setdetect.cli.card_class_data", ["--help"]),
     ("setdetect.cli.card_detection", ["--help"]),
     ("setdetect.cli.card_detection", ["profile-arrangement-estimation", "--help"]),
     ("setdetect.cli.card_tracking", ["--help"]),
-    ("setdetect.cli.sync_android_assets", ["--help"]),
+    ("setdetect.cli.card_corners", ["prepare-hf", "--help"]),
+    ("setdetect.cli.card_corners", ["prepare-github", "--help"]),
+    ("setdetect.cli.card_corners", ["prepare-android", "--help"]),
+    ("setdetect.cli.card_classification", ["prepare-hf", "--help"]),
+    ("setdetect.cli.card_classification", ["prepare-github", "--help"]),
+    ("setdetect.cli.card_classification", ["prepare-android", "--help"]),
 ]
 
 

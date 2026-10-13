@@ -20,7 +20,7 @@ namespace setdetect::card_detection {
 
 namespace {
 
-// Width:height of the flat card, matching model::card_classification::CARD_SIZE (224, 320).
+// Width:height of the flat card (7:10).
 constexpr double kCardAspectRatio = 224.0 / 320.0;
 const std::array<Point2d, 4> kCanon = {Point2d{0.0, 0.0}, Point2d{kCardAspectRatio, 0.0},
                                        Point2d{kCardAspectRatio, 1.0}, Point2d{0.0, 1.0}};
@@ -514,10 +514,17 @@ auto occlusion_order(const std::vector<DetectedCard>& cards) -> std::vector<int>
     return order;
 }
 
-// Width/height of the classifier's input card crop; must match the exported
-// classification model's expected input size.
-constexpr int kClassCardWidth = 224;
-constexpr int kClassCardHeight = 320;
+// Width/height of the classifier's input card crop, which is fixed at export.
+auto class_input_size(const Ort::Session& session) -> cv::Size {
+    const std::vector<int64_t> shape = session.GetInputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
+    if (shape.size() != 4 || shape[2] <= 0 || shape[3] <= 0) {
+        throw std::runtime_error("classifier input must be NCHW with a fixed height and width");
+    }
+    return {static_cast<int>(shape[3]), static_cast<int>(shape[2])};
+}
+
+// Margin kept around a card's bounding box when it is cropped for downscaling.
+constexpr int kWarpPad = 20;
 constexpr uint8_t kLetterboxPadValue = 114;
 
 // Thin wrapper around cv::resize(INTER_LINEAR). Its pixel-center-aligned sampling
@@ -673,21 +680,52 @@ auto parse_corner_output(const float* rows, int n_rows, int n_cols, double conf_
 }
 
 // Perspective-warps `quad` (in img_rgb's coordinates) to an out_w x out_h rectangle,
-// then crops crop_frac off each edge and resizes back to out_w x out_h. Warps
-// directly from the full image against the true quad coordinates rather than
-// cropping to the quad's bounding box first: numerically equivalent, since only
-// the destination raster is ever iterated. Returns nullopt for a degenerate
+// then crops crop_frac off each edge and resizes back to out_w x out_h. A card wider
+// than out_w pixels is first area-averaged down to that width, since the bilinear warp
+// would otherwise alias thin strokes and stripes. Returns nullopt for a degenerate
 // (zero-area/non-invertible) quad.
 auto warp_card(const cv::Mat& img_rgb, const std::array<Point2d, 4>& quad, int out_w, int out_h,
                double crop_frac = 0.06) -> std::optional<cv::Mat> {
+    const cv::Mat* src = &img_rgb;
+    cv::Mat region;
+    std::array<Point2d, 4> src_quad = quad;
+    const double card_w = 0.5 * (std::hypot(quad[1].x - quad[0].x, quad[1].y - quad[0].y) +
+                                 std::hypot(quad[2].x - quad[3].x, quad[2].y - quad[3].y));
+    if (card_w > out_w) {
+        double x_lo = quad[0].x;
+        double x_hi = quad[0].x;
+        double y_lo = quad[0].y;
+        double y_hi = quad[0].y;
+        for (const Point2d& p : quad) {
+            x_lo = std::min(x_lo, p.x);
+            x_hi = std::max(x_hi, p.x);
+            y_lo = std::min(y_lo, p.y);
+            y_hi = std::max(y_hi, p.y);
+        }
+        const int x_min = std::max(0, static_cast<int>(x_lo) - kWarpPad);
+        const int y_min = std::max(0, static_cast<int>(y_lo) - kWarpPad);
+        const int x_max = std::min(img_rgb.cols, static_cast<int>(x_hi) + kWarpPad);
+        const int y_max = std::min(img_rgb.rows, static_cast<int>(y_hi) + kWarpPad);
+        if (x_max > x_min && y_max > y_min) {
+            const double scale = out_w / card_w;
+            cv::resize(img_rgb(cv::Rect(x_min, y_min, x_max - x_min, y_max - y_min)), region, cv::Size(), scale, scale,
+                       cv::INTER_AREA);
+            for (Point2d& p : src_quad) {
+                p.x = (p.x - x_min) * scale;
+                p.y = (p.y - y_min) * scale;
+            }
+            src = &region;
+        }
+    }
+
     const std::array<Point2d, 4> dst = {Point2d{0.0, 0.0}, Point2d{static_cast<double>(out_w), 0.0},
                                         Point2d{static_cast<double>(out_w), static_cast<double>(out_h)},
                                         Point2d{0.0, static_cast<double>(out_h)}};
-    const std::optional<Eigen::Matrix3d> h = solve_perspective_transform(quad, dst);
+    const std::optional<Eigen::Matrix3d> h = solve_perspective_transform(src_quad, dst);
     if (!h.has_value() || !h->allFinite() || std::abs(h->determinant()) < 1e-9) {
         return std::nullopt;
     }
-    cv::Mat warped = warp_perspective(img_rgb, *h, out_h, out_w);
+    cv::Mat warped = warp_perspective(*src, *h, out_h, out_w);
 
     const int cw = static_cast<int>(std::lround(crop_frac * out_w));
     const int ch = static_cast<int>(std::lround(crop_frac * out_h));
@@ -785,8 +823,9 @@ void warm_up_corner_session(Ort::Session& session, int imgsz) {
 }
 
 void warm_up_class_session(Ort::Session& session) {
-    std::vector<float> dummy(static_cast<size_t>(kClassCardWidth) * static_cast<size_t>(kClassCardHeight) * 3, 0.0F);
-    const std::array<int64_t, 4> shape = {1, 3, kClassCardHeight, kClassCardWidth};
+    const cv::Size size = class_input_size(session);
+    std::vector<float> dummy(static_cast<size_t>(size.width) * static_cast<size_t>(size.height) * 3, 0.0F);
+    const std::array<int64_t, 4> shape = {1, 3, size.height, size.width};
     const Ort::MemoryInfo mem_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
     const Ort::Value input =
         Ort::Value::CreateTensor<float>(mem_info, dummy.data(), dummy.size(), shape.data(), shape.size());
@@ -992,18 +1031,18 @@ auto classify_cards(const cv::Mat& img_rgb, const std::vector<std::array<Point2d
         return {};
     }
 
+    const cv::Size size = class_input_size(session);
     std::vector<float> batch;
-    batch.reserve(corners_list.size() * static_cast<size_t>(kClassCardWidth) * static_cast<size_t>(kClassCardHeight) *
-                  3);
+    batch.reserve(corners_list.size() * static_cast<size_t>(size.width) * static_cast<size_t>(size.height) * 3);
     for (const std::array<Point2d, 4>& quad : corners_list) {
-        std::optional<cv::Mat> card = warp_card(img_rgb, quad, kClassCardWidth, kClassCardHeight);
+        std::optional<cv::Mat> card = warp_card(img_rgb, quad, size.width, size.height);
         const cv::Mat card_img =
-            card.has_value() ? std::move(*card) : cv::Mat::zeros(kClassCardHeight, kClassCardWidth, CV_8UC3);
+            card.has_value() ? std::move(*card) : cv::Mat::zeros(size.height, size.width, CV_8UC3);
         append_normalized_card(card_img, batch);
     }
 
     const auto n = static_cast<int64_t>(corners_list.size());
-    const std::array<int64_t, 4> shape = {n, 3, kClassCardHeight, kClassCardWidth};
+    const std::array<int64_t, 4> shape = {n, 3, size.height, size.width};
     const Ort::MemoryInfo mem_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
     const Ort::Value input_tensor =
         Ort::Value::CreateTensor<float>(mem_info, batch.data(), batch.size(), shape.data(), shape.size());

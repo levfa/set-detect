@@ -440,18 +440,27 @@ def extract_cards(
 
 @dataclass(frozen=True)
 class CardAugConfig:
-    """Per-card photometric augmentation. Zero disables a transform."""
+    """Per-card photometric augmentation. Zero disables a transform.
 
-    hue_deg: float = 15.0
+    ``hue_deg`` is the symmetric hue shift for cards without a SET color (fakes). Real cards
+    draw from their color's own range, in degrees relative to the cutout. The ranges follow
+    how far real decks and cameras move each color once the card face is white-balanced: red
+    barely moves, green drifts towards yellow, and purple spans blue-violet to magenta.
+    """
+
+    hue_deg: float = 30.0
+    hue_red: tuple[float, float] = (-15.0, 15.0)
+    hue_green: tuple[float, float] = (-40.0, 15.0)
+    hue_purple: tuple[float, float] = (-30.0, 65.0)
     sat: float = 0.35
-    wb: float = 0.15
+    wb: float = 0.30
     bright: float = 0.25
     contrast: float = 0.30
 
 
 def make_card_augmenter(
     cfg: CardAugConfig,
-) -> tp.Callable[[np.ndarray, np.random.Generator], np.ndarray]:
+) -> tp.Callable[[np.ndarray, MaskedCard, np.random.Generator], np.ndarray]:
     """Build the per-card photometric fold applied by ``make_image`` before placement.
 
     Directional darkening lives on the shared ``effects.make_card_shading`` hook instead of
@@ -462,12 +471,18 @@ def make_card_augmenter(
     ``np.random.default_rng(seed)``.
     """
 
-    def _augment(card_img: np.ndarray, rng: np.random.Generator) -> np.ndarray:
+    hue_ranges = {Color.RED: cfg.hue_red, Color.GREEN: cfg.hue_green, Color.PURPLE: cfg.hue_purple}
+
+    def _augment(card_img: np.ndarray, card: MaskedCard, rng: np.random.Generator) -> np.ndarray:
         rgb = card_img[..., :3].astype(np.float32)
 
         if cfg.hue_deg > 0 or cfg.sat > 0:
             hsv = cv2.cvtColor(card_img[..., :3], cv2.COLOR_BGR2HSV).astype(np.int16)
-            hsv[..., 0] = (hsv[..., 0] + rng.uniform(-cfg.hue_deg, cfg.hue_deg)) % 180
+            hue_lo, hue_hi = -cfg.hue_deg, cfg.hue_deg
+            if cfg.hue_deg > 0 and not isinstance(card, FakeCard):
+                hue_lo, hue_hi = hue_ranges[card.color]
+            # OpenCV's 8-bit hue channel counts in 2-degree steps
+            hsv[..., 0] = (hsv[..., 0] + rng.uniform(hue_lo, hue_hi) / 2.0) % 180
             hsv[..., 1] = hsv[..., 1] * rng.uniform(1.0 - cfg.sat, 1.0 + cfg.sat)
             rgb = cv2.cvtColor(np.clip(hsv, 0, 255).astype(np.uint8), cv2.COLOR_HSV2BGR).astype(np.float32)
 
