@@ -1036,8 +1036,7 @@ auto classify_cards(const cv::Mat& img_rgb, const std::vector<std::array<Point2d
     batch.reserve(corners_list.size() * static_cast<size_t>(size.width) * static_cast<size_t>(size.height) * 3);
     for (const std::array<Point2d, 4>& quad : corners_list) {
         std::optional<cv::Mat> card = warp_card(img_rgb, quad, size.width, size.height);
-        const cv::Mat card_img =
-            card.has_value() ? std::move(*card) : cv::Mat::zeros(size.height, size.width, CV_8UC3);
+        const cv::Mat card_img = card.has_value() ? std::move(*card) : cv::Mat::zeros(size.height, size.width, CV_8UC3);
         append_normalized_card(card_img, batch);
     }
 
