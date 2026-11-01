@@ -2,6 +2,10 @@
 Set Detect is an Android app that helps to find sets in the card game SET®.
 The laid-out cards can be entered manually or scanned via the phone's camera.
 
+<a href="https://play.google.com/store/apps/details?id=com.fabianleven.setdetect">
+  <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80">
+</a>
+
 <p>
   <img src="android-publishing/screen/screen-capture.gif" alt="Screen capture" height="300">
   <img src="android-publishing/screen/screenshot_0.png" alt="Scanning a board" height="300">
